@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+
+# 本地配置（含密钥）
+config/settings.toml
+
+# 本地临时脚本 / 产物
+.scratch/
+*.bak
+*.bak-*
+
+# 测试与工具缓存
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+*.zip
+

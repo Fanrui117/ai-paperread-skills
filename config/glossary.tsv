@@ -1,0 +1,88 @@
+# 领域术语表：每行 `英文<TAB>中文`，翻译时作为强约束注入 prompt
+# 只放「必须统一译法」的词，不要放整句
+
+# ---- 点跟踪 / 6D 位姿 ----
+tracking any point	TAP（任意点跟踪）
+point tracking	点跟踪
+point trajectory	点轨迹
+trajectory	轨迹
+occlusion	遮挡
+occluded	被遮挡
+visibility	可见性
+visible	可见
+ground truth	真值
+annotation	标注
+annotator	标注者
+annotation interface	标注界面
+track assist	轨迹辅助
+optical flow	光流
+cost volume	代价体
+soft argmax	软 argmax
+argmax	argmax
+feature map	特征图
+backbone	骨干网络
+query point	查询点
+query	查询
+frame	帧
+temporal refinement	时序精修
+initialization	初始化
+refinement	精修
+benchmark	基准
+dataset	数据集
+baseline	基线
+ablation	消融
+architecture	架构
+training data	训练数据
+fine-tuning	微调
+evaluation metric	评测指标
+Jaccard	Jaccard
+average accuracy	平均精度
+occlusion accuracy	遮挡准确率
+pseudo-labelling	伪标注
+self-training	自训练
+
+# ---- AI infra / 大模型系统 ----
+mixture-of-experts	MoE（混合专家）
+expert	专家
+routed expert	路由专家
+shared expert	共享专家
+router	路由器
+routing	路由
+gating	门控
+fine-grained expert segmentation	细粒度专家分割
+expert specialization	专家专业化
+load balancing	负载均衡
+auxiliary loss	辅助损失
+capacity factor	容量因子
+attention	注意力
+multi-head attention	多头注意力
+grouped-query attention	分组查询注意力
+multi-head latent attention	多头潜在注意力（MLA）
+KV cache	KV 缓存
+context length	上下文长度
+token	token
+tokenizer	分词器
+inference	推理
+pre-training	预训练
+post-training	后训练
+supervised fine-tuning	监督微调
+reinforcement learning	强化学习
+throughput	吞吐
+latency	延迟
+batch	批
+batching	批处理
+scheduling	调度
+iteration-level scheduling	迭代级调度
+selective batching	选择性批处理
+pipeline parallelism	流水线并行
+tensor parallelism	张量并行
+data parallelism	数据并行
+model parallelism	模型并行
+distributed serving	分布式服务
+serving system	服务系统
+execution engine	执行引擎
+out-painting	外绘
+panorama	全景图
+diffusion model	扩散模型
+latent	潜变量
+denoising	去噪

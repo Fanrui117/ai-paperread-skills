@@ -1,0 +1,74 @@
+# PaperRead 配置样例
+# 用法：复制为 config/settings.toml（已被 .gitignore 忽略），按需修改。
+# 也可以用环境变量：PAPERREAD_VAULT / PAPERREAD_CONFIG / ZOTERO_DATA_DIR / DEEPSEEK_API_KEY
+
+[vault]
+# Obsidian 论文库根目录（vault root）。默认 ~/PaperNotes
+root = "~/PaperNotes"
+# 论文库在 vault 内的子目录；留空表示直接用 vault 根
+library_subdir = ""
+
+[zotero]
+# Zotero 数据目录（含 zotero.sqlite 与 storage/）。留空则自动探测 ~/Zotero 等常见路径
+data_dir = ""
+# Zotero 本地 HTTP API（Zotero 设置 → 高级 → 勾选「允许其他应用与 Zotero 通信」）
+local_api = "http://127.0.0.1:23119/api"
+prefer_local_api = true
+
+[translate]
+# 翻译路线：
+#   agent  = 由 DSH/agent 逐块翻译（不需要任何 API key，质量最好，推荐）
+#   baidu  = 百度通用文本翻译（需 appid + secret，标准版 1 QPS / 5 万字符每月免费）
+#   deepseek = DeepSeek API（OpenAI 兼容，需 api_key）
+provider = "agent"
+
+# ---- 以下仅 provider = "deepseek" 时使用 ----
+api_base = "https://api.deepseek.com"
+model = "deepseek-chat"
+# 密钥三种来源任选其一：这里 / 环境变量 / DSH 凭据（~/.dsh/.credentials.yaml）
+api_key = ""
+api_key_env = "DEEPSEEK_API_KEY"
+use_dsh_credentials = false
+
+# ---- 以下仅 provider = "baidu" 时使用 ----
+# 申请：https://fanyi-api.baidu.com/ （管理控制台 → 开发者信息）
+baidu_appid = ""
+baidu_secret = ""
+
+# 单次请求最大字符数（用于切批）
+batch_chars = 4000
+# 术语表：每行 `原文<TAB>译文`，翻译时作为强约束注入
+glossary = "config/glossary.tsv"
+
+# 机器翻译常见错译修正（只作用于译文，按顺序 replace）
+[translate.post_replace]
+# "地面真实" = "真值"
+
+[note]
+# 笔记语言：zh / en
+language = "zh"
+# 是否在笔记 frontmatter 写入 tags
+write_tags = true
+
+# 忽略规则：不进 vault、不报错
+[ignore]
+# 集合名（含子串匹配，如草稿箱）
+collections = []
+# Zotero item key（8 位）
+items = []
+
+# MinerU 云端解析（可选：paperread extract <key> --backend mineru 或 [extract] backend = "mineru"）
+# 申请：https://mineru.net/ （API 管理页创建 Token）
+# 只做 PDF -> markdown（公式转 LaTeX、HTML 表格、图表），不做翻译
+[mineru]
+api_key = ""
+api_base = "https://mineru.net/api/v4"
+
+[extract]
+# 默认解析后端：pymupdf（本地、快、免费）| mineru（云端、公式/表格更好，需 key）
+# 注意：换后端会改变段落锚点，已有笔记的链接会失效，建议只对未处理的论文使用
+backend = "pymupdf"
+
+# 人工覆写的论文简称（Zotero item key 或完整标题 -> 简称）
+[names]
+# "Particle Video Revisited: Tracking Through Occlusions Using Point Trajectories" = "PIPs"
