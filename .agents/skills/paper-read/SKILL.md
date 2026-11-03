@@ -8,10 +8,11 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 
 ## 环境与边界
 
-- 项目根：`G:\CODE\PaperRead_tools`（所有命令在此目录执行）
-- CLI：`.venv\Scripts\paperread.exe`；配置：`config/settings.toml`
-- vault 写边界：`G:\PaperNotes`（不要写到 vault 之外）
-- **Zotero 只读**：不要修改 `D:\Software\Zotero` 下任何文件
+- 项目根：本仓库根目录（所有命令在此执行）
+  - Windows：`.venv\Scripts\paperread.exe`；macOS/Linux：`.venv/bin/paperread`
+- 配置：`config/settings.toml`（vault 路径、Zotero 路径、API key 都在这里；没有就 `paperread init`）
+- vault 写边界：只写 `[vault].root` 指定的目录（默认 `~/PaperNotes`），不要写到 vault 之外
+- **Zotero 只读**：不要修改 Zotero 数据目录（`[zotero].data_dir`）下任何文件
 
 ## 目录约定
 
@@ -28,6 +29,8 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 
 | 命令 | 作用 |
 |---|---|
+| `paperread init` | 生成 `config/settings.toml` 与 vault 目录 |
+| `paperread doctor` | 环境自检（配置 / Zotero / vault / key / 依赖） |
 | `paperread scan` | 只读扫描 Zotero → `vault/.paperread/library.json` + 摘要 |
 | `paperread plan` | 目录规划预览；`--apply` 创建目录并写 state |
 | `paperread extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + blocks.json；`--backend mineru` 用云端 API（LaTeX 公式 + HTML 表格） |
@@ -61,7 +64,7 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 
 ## 笔记硬规则
 
-- 出处用相对链接：`[↓原文](full.md#^pN)`；图片 `![](assets/figN_xxx.png)`；跨论文 `[PIPs](../PIPs-8VWR6W8W/note.md)`。
+- 出处用相对链接：`[↓原文](full.md#^pN)`；图片 `![](assets/figN_xxx.png)`；跨论文 `[PaperB](../PaperB-YYYYYYYY/note.md)`。
 - 公式统一用 Markdown 数学语法：**行内 `$...$`**、**行间 `$$...$$`**（不要用图片或 `_x_` 模拟上下标）。
 - 不编造数字；原文没有的不写；不确定处标注「原文未明确」。
 - 不覆盖已有笔记：写前检查文件是否存在，存在则先问用户。

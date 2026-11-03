@@ -237,7 +237,7 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 - 笔记里一律用**相对 Markdown 链接**：
   - 原文回链：`[↓原文](full.md#^p7)`
   - 图片：`![](assets/fig1_xxx.png)`（Obsidian 子目录里 `![[assets/x]]` 是 vault 根相对，会找不到）
-  - 跨论文：`[PIPs](../PIPs-8VWR6W8W/note.md)`
+  - 跨论文：`[PaperB](../PaperB-YYYYYYYY/note.md)`
 - 公式：**行内 `$...$`、行间 `$$...$$`**；不要用图片或 `_x_` 模拟上下标。
 - `verify` 会检查：链接目标存在、锚点存在、图片存在、frontmatter `paper_key` 一致、引文能在全文找到。
 

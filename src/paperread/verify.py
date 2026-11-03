@@ -6,7 +6,7 @@
   <论文目录>/full.md      中英对照全文（^pN 锚点）
   <论文目录>/src.md       英文源
   <论文目录>/assets/      图片
-链接统一用相对 markdown：[↓原文](full.md#^p7)、[PIPs](../PIPs-8VWR6W8W/note.md)
+链接统一用相对 markdown：[↓原文](full.md#^p7)、[PaperB](../PaperB-YYYYYYYY/note.md)
 （兼容旧的 [[<简称>_fulltext#^p7|↓原文]] 写法）
 """
 from __future__ import annotations

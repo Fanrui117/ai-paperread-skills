@@ -473,10 +473,11 @@ def cmd_doctor(cfg, args) -> int:
 
     ok = True
 
-    def check(name: str, passed: bool, detail: str = "") -> None:
+    def check(name: str, passed: bool, detail: str = "", optional: bool = False) -> None:
         nonlocal ok
-        ok = ok and passed
-        mark = "OK  " if passed else "FAIL"
+        if not optional:
+            ok = ok and passed
+        mark = "OK  " if passed else ("WARN" if optional else "FAIL")
         print(f"[{mark}] {name}" + (f" — {detail}" if detail else ""))
 
     check("Python >= 3.11", sys.version_info >= (3, 11), sys.version.split()[0])
@@ -497,7 +498,7 @@ def cmd_doctor(cfg, args) -> int:
             api_ok = resp.status == 200
     except Exception:  # noqa: BLE001
         api_ok = False
-    check("Zotero 本地 API", api_ok, cfg.local_api + ("（未开启时回退 sqlite 只读副本）" if not api_ok else ""))
+    check("Zotero 本地 API", api_ok, cfg.local_api + ("（未开启时回退 sqlite 只读副本）" if not api_ok else ""), optional=True)
 
     try:
         probe = cfg.vault_root / ".paperread" / ".write-test"
@@ -624,7 +625,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_tr = sub.add_parser("translate", help="blocks.json -> 中英对照全文（段级交替 + 锚点）")
     p_tr.add_argument("key", nargs="?", help="Zotero item key（8 位）")
     p_tr.add_argument("--all", action="store_true", help="翻译所有已登记论文")
-    p_tr.add_argument("--collection", help="按集合批量（如 6DPose）")
+    p_tr.add_argument("--collection", help="按集合批量（如 MyPapers）")
     p_tr.add_argument("--dry-run", action="store_true", help="不调用 API，只渲染英文 + 锚点")
     p_tr.add_argument("--max-blocks", type=int, default=None, help="只翻译前 N 块（冒烟测试用）")
     p_tr.add_argument("--provider", choices=["deepseek", "baidu", "agent"], default=None, help="覆盖配置里的翻译 provider")
@@ -682,7 +683,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_run = sub.add_parser("run", help="单篇/整集合跑 extract -> translate -> packet")
     p_run.add_argument("key", nargs="?", help="Zotero item key（8 位）")
-    p_run.add_argument("--collection", help="按集合名批量（如 6DPose）")
+    p_run.add_argument("--collection", help="按集合名批量（如 MyPapers）")
     p_run.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
     p_run.add_argument("--force", action="store_true", help="强制重新抽取")
     p_run.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端（默认取 config [extract].backend）")

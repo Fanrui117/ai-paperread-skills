@@ -65,7 +65,7 @@
 paper_key: XXXXXXXX
 title: TAP-Vid: A Benchmark for Tracking Any Point in a Video
 collection: MyPapers
-zotero_pdf: D:\Software\Zotero\storage\RY98Z8VZ\....pdf
+zotero_pdf: <zotero_data_dir>/storage/<item>/xxx.pdf
 pdf_sha256: ...
 translated: 2026-11-03
 translation_model: deepseek-chat
