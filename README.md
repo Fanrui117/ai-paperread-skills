@@ -5,7 +5,7 @@
 **Zotero → Obsidian 论文阅读流水线**：只读扫描 Zotero 库 → 按集合结构镜像目录 → 抽取 PDF（图 / 公式 / 表格）→ 生成中英对照全文（段级交替 + `^pN` 锚点）→ agent 写精读笔记（引用可回链原文）→ 自动校验。
 
 - 形态：Python CLI + DSH skill（也可被其他 agent/脚本调用）
-- Zotero **只读**：不改库、不写标注
+- Zotero **默认只读**：扫描/查找不改库；可选 `ingest` 通过 Zotero Connector 写入新论文
 - 输出是标准 Obsidian vault，可直接用 Obsidian 打开
 
 ```
@@ -16,6 +16,40 @@
 ├── src.md        英文源
 └── assets/       图片（fig*.png / eq*.png / img*.jpg）
 ```
+
+---
+
+## 0. 架构与数据流
+
+三个主体：**Zotero（论文源）**、**paperread CLI（流水线）**、**Obsidian（阅读端）**，agent 负责需要判断力的环节（翻译、写笔记、公式修复）。
+
+![架构图](docs/architecture.svg)
+
+（`docs/architecture.svg` 可直接用浏览器打开；下同）
+
+```
+                    ┌──────────────────────────────┐
+                    │          DSH Agent           │
+                    │  翻译 / 写笔记 / 看页图修公式   │
+                    └───────▲───────────┬──────────┘
+             emit-tasks     │           │  import-json
+                    ┌───────┴───────────▼──────────┐
+  ┌──────────┐      │        paperread CLI         │      ┌──────────────┐
+  │  Zotero  │─────▶│ scan/find  →  plan/extract   │─────▶│   Obsidian   │
+  │ 论文库    │ 只读  │ translate  →  packet/verify  │ 写入  │  Vault       │
+  └────▲─────┘      └──────────────────────────────┘      └──────────────┘
+       │ ingest（可选写库）
+  ┌────┴────────────┐
+  │ Zotero Connector │  /connector/saveItems + saveAttachment
+  └─────────────────┘
+```
+
+| 主体 | 职责 | 读写 |
+|---|---|---|
+| Zotero | 论文元数据 + PDF 附件 | 扫描只读；`ingest` 时通过 Connector 写入 |
+| paperread CLI | 扫描、规划、抽取、翻译编排、校验 | 读 Zotero；写 `<vault>/.paperread/` 与论文目录 |
+| DSH Agent | 翻译、精读笔记、公式/表格修复、页图核对 | 读任务 JSON；写结果 JSON；不直接改库 |
+| Obsidian | 阅读 note.md / full.md / 图表 | 只读展示 |
 
 ---
 
@@ -147,59 +181,57 @@ items = []                   # Zotero item key（8 位）
 
 ## 4. 快速开始
 
-```bash
-# 1. 只读扫描 Zotero（写 <vault>/.paperread/library.json）
-.venv/bin/paperread scan
+两条入口：**全库**（一次性建好所有目录）和**单篇**（只处理当前想读的那篇，不扫全库）。
 
-# 2. 看规划 / 创建目录
-.venv/bin/paperread plan
-.venv/bin/paperread plan --apply
-
-# 3. 单篇：抽取（PDF → src.md + assets/ + blocks.json）
-.venv/bin/paperread extract <ZoteroKey>
-
-# 4a. 翻译（agent 路线：导出任务 → agent 逐块译 → 导入渲染）
-.venv/bin/paperread translate <ZoteroKey> --emit-tasks
-#    把 tasks 交给 agent 翻译，产出 {"<block_id>": "<中文>"}
-.venv/bin/paperread translate <ZoteroKey> --provider agent --import-json <译文.json>
-
-# 4b. 或全自动：百度 / DeepSeek
-.venv/bin/paperread translate <ZoteroKey> --provider baidu
-
-# 5. 写作包（大纲 + 锚点 + 图清单），交给 agent 写 note.md / summary.md
-.venv/bin/paperread packet <ZoteroKey>
-
-# 6. 校验（链接 / 锚点 / 图片 / frontmatter / 引文）
-.venv/bin/paperread verify <ZoteroKey>
-.venv/bin/paperread verify --all
-```
-
-> 没有翻译需求时：`paperread extract` + `paperread translate <key> --dry-run` 只生成英文 + 锚点，笔记仍可写。
-
-### 4.1 离线示例（不需要 Zotero / API key）
-
-仓库自带一个合成论文示例，用 8 个样例块演示完整产物格式：
+### 4.1 全库流程
 
 ```bash
-.venv/bin/python examples/demo/run_demo.py              # 输出到临时目录
-.venv/bin/python examples/demo/run_demo.py ./demo-vault  # 输出到指定目录
+paperread scan                 # 只读扫描 Zotero → <vault>/.paperread/library.json
+paperread plan                 # 预览目录规划
+paperread plan --apply         # 创建所有论文目录（写 state）
+paperread status               # 查看覆盖率（F=全文 N=笔记 S=速览）
 ```
 
-它会生成一个 demo vault（`MyPapers/DemoPaper-DEMO0001/`），包含：
+### 4.2 单篇流程（推荐日常使用）
 
-- `full.md`：中英对照 + `^pN` 锚点 + `$$...$$` 公式 + Markdown 表格
-- `note.md`：精读笔记（引用带 `[↓原文](full.md#^pN)` 回链）
-- `assets/fig1_demo.png`：占位图
+新论文加进 Zotero 后，不用全库扫描，直接按标题/DOI/key 定位：
 
-最后自动跑 `verify` 并打印校验结果。可以直接用 Obsidian 打开生成的目录查看。
+```bash
+paperread find "point tracking"     # 只读查找：列出 key / 标题 / 集合 / PDF 状态
+paperread add <key> --run           # 建这一篇的目录并立刻 extract → translate → packet
+# 或分步：
+paperread add <key>                 # 只建目录
+paperread extract <key>             # PDF → src.md + assets/ + blocks.json
+paperread translate <key> --emit-tasks   # 交给 agent 翻译，再 --import-json 导入
+paperread packet <key>              # 写作包 → agent 写 note.md / summary.md
+paperread verify <key>              # 校验链接/锚点/图片/引文
+```
 
-### 4.2 用 DSH agent 跑完整流程
+`add` 只处理这一篇，不会创建其它论文的目录；多篇同时新增时也只影响你指定的那篇。
+
+### 4.3 入库到 Zotero（可选，写库）
+
+已有论文可以直接从 Zotero 浏览器插件保存；如果想让 agent 代劳：
+
+```bash
+paperread ingest 2401.12345                 # arXiv ID
+paperread ingest 10.1000/xyz --collection "MyPapers"   # DOI + 指定集合
+paperread ingest https://arxiv.org/abs/2401.12345 --run # 入库并立刻处理进 vault
+```
+
+实现方式：调用 Zotero 桌面版自带的 **Connector 接口**（浏览器插件用的同一套协议）：
+`/connector/saveItems` 保存元数据 → `/connector/updateSession` 移动到指定集合 → `/connector/saveAttachment` 上传 PDF。
+不直接改 `zotero.sqlite`，因此不会破坏库；限制是只能写入个人库、不能更新/删除已有条目。
+
+> 需要 Zotero 正在运行，并勾选「允许其他应用与 Zotero 通信」。没有装 Zotero 或不想写库时，用浏览器插件入库后跑 `paperread find` + `paperread add` 即可。
+
+### 4.4 用 DSH agent 跑完整流程
 
 本仓库自带 skill：`.agents/skills/paper-read/SKILL.md`。在 DSH 中打开本项目（或其父目录含 `.agents/skills`）即可被识别，然后直接说：
 
 > 帮我把 Zotero 里 xxx 这篇论文做成 Obsidian 笔记
 
-skill 会按「scan → plan → extract → translate(agent) → packet → 写笔记 → verify」执行。
+skill 会按「find/add → extract → translate(agent) → packet → 写笔记 → verify」执行；需要新论文入库时说「把 arXiv xxx 入库并整理」。
 
 **把 skill 注册到自己的项目**：
 
@@ -224,6 +256,9 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `扫描` | `scan` | 只读扫描 Zotero → `vault/.paperread/library.json` |
 | `审计` | `audit` | 审计：可用 / 缺 PDF / 孤儿 / 已忽略 |
 | `规划` | `plan [--apply]` | 对照 vault 输出目录规划；`--apply` 建目录并写 state |
+| `查找` | `find <query>` | 只读查找：key / 标题片段 / DOI / 作者 → 列出 key、集合、PDF 状态 |
+| `添加` | `add <query> [--run]` | 只处理单篇：按 key/标题/DOI 建目录，`--run` 直接跑流水线 |
+| `入库` | `ingest <arxiv\|doi\|url> [--collection] [--run]` | 通过 Zotero Connector 写入新论文（可选集合），再处理进 vault |
 | `抽取` | `extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + `blocks.json` |
 | `翻译` | `translate <key> [--dry-run] [--provider ...] [--main-only]` | 生成中英对照 `full.md` |
 | `翻译` | `translate <key> --emit-tasks` / `--import-json <f>` | agent 翻译工作流（导出块 → 逐块译 → 导入） |
@@ -237,6 +272,14 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `一键运行` | `run <key> \| --collection X` | extract → translate → packet 一条龙 |
 | `索引` | `index` | 生成 vault 根目录 `_索引.md` |
 | `状态` | `status` | 覆盖率（F=全文 N=笔记 S=速览） |
+
+单篇处理（日常最常用）：
+
+```bash
+paperread 查找 "point tracking"       # 只读，看看库里有哪几篇
+paperread 添加 <key> --run            # 只建这一篇目录并跑 extract→translate→packet
+paperread 入库 2401.12345 --collection MyPapers --run   # 新论文：写入 Zotero 并处理
+```
 
 中文别名的典型用法：
 
@@ -300,7 +343,8 @@ PDF 更新后 `plan` 会标 `stale`；`extract --force` 重新抽取。
 
 ## 8. 设计要点
 
-- **Zotero 只读**：本地 API 优先，回退 sqlite 只读副本。
+- **Zotero 默认只读**：本地 API 优先，回退 sqlite 只读副本；写库只走可选的 `ingest`（Zotero Connector，浏览器插件同协议）。
+- **全库 / 单篇分离**：`scan`/`plan` 管全库；`find`/`add` 只处理单篇，不创建其它目录。
 - **锚点可追溯**：全文每段 `^pN`；笔记引用带 `#^pN` 回链；`verify` 全量校验。
 - **agent 工作流**：翻译 / 公式识别 / 表格修复 / 源段落修复都采用「导出任务 JSON → agent 处理 → 导入」模式，不需要额外 API 也能产出高质量结果。
 - **可替换后端**：解析（PyMuPDF / MinerU）、翻译（agent / 百度 / DeepSeek）都可切换。
@@ -311,8 +355,8 @@ PDF 更新后 `plan` 会标 `stale`；`extract --force` 重新抽取。
 ## 9. 开发与测试
 
 ```bash
-uv pip install -e .
-.venv/bin/pytest -q          # 22 个单测：命名/规划/verify/翻译/公式/表格/fixsrc
+uv sync                      # 含 dev 依赖（pytest）
+.venv/bin/pytest -q          # 26 个单测：命名/规划/verify/翻译/公式/表格/fixsrc/查找
 .venv/bin/paperread --help
 ```
 
@@ -324,8 +368,10 @@ src/paperread/
 ├── config.py      配置加载（toml + 环境变量）
 ├── zotero.py      sqlite 只读副本
 ├── zotero_api.py  Zotero 本地 API
+├── zotero_connector.py  Zotero Connector 写入（ingest 用，可选）
+├── ingest.py      单篇查找 / 元数据抓取（arXiv/DOI）/ 入库
 ├── naming.py      目录/文件命名
-├── plan.py        规划与增量状态
+├── plan.py        规划与增量状态（支持单篇过滤）
 ├── extract.py     PDF 抽取（PyMuPDF / MinerU）
 ├── mineru.py      MinerU 云端解析
 ├── translate.py   翻译与全文渲染

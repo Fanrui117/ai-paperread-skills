@@ -32,6 +32,9 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 | `paperread init` | 生成 `config/settings.toml` 与 vault 目录 |
 | `paperread doctor` | 环境自检（配置 / Zotero / vault / key / 依赖） |
 | `paperread scan` | 只读扫描 Zotero → `vault/.paperread/library.json` + 摘要 |
+| `paperread find <query>` | 只读查找：key / 标题片段 / DOI / 作者 |
+| `paperread add <query> [--run]` | 单篇：按 key/标题/DOI 建目录（不扫全库），`--run` 直接跑流水线 |
+| `paperread ingest <arxiv\|doi\|url> [--collection] [--run]` | 写入 Zotero（Connector API，可选集合），再处理进 vault |
 | `paperread plan` | 目录规划预览；`--apply` 创建目录并写 state |
 | `paperread extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + blocks.json；`--backend mineru` 用云端 API（LaTeX 公式 + HTML 表格） |
 | `paperread translate <key> [--dry-run] [--provider baidu\|agent] [--main-only]` | 生成中英对照 `full.md` |
@@ -52,8 +55,8 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 
 ## 单篇标准流程
 
-1. **定 key**：`paperread scan` 输出里按标题/简称找 8 位 Zotero key。
-2. **规划**：`paperread plan`；目标目录不存在则加 `--apply`。
+1. **定位论文**：`paperread find <关键词/DOI/key>`（只读）；找不到时让用户先入库（浏览器插件或 `paperread ingest`）。
+2. **建目录**：`paperread add <key>`（只建这一篇；`--run` 可一步跑 extract→translate→packet）。
 3. **抽取**：`paperread extract <key>`；用 read_image 抽查 `assets/fig1_*` 是否切对。
 4. **翻译（agent 工作流，推荐）**：
    - `paperread translate <key> --emit-tasks` 导出待译块；
@@ -61,6 +64,8 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
    - `paperread translate <key> --provider agent --import-json <file>` 渲染 `full.md`。
 5. **写笔记**：读 `templates/note-template.md` 与写作包，写 `note.md`；再写 `summary.md`。
 6. **校验**：`paperread verify <key>`，全绿才交付。
+
+> 全库场景（首次建库/批量）：`paperread scan` → `paperread plan --apply` → `paperread status`。
 
 ## 笔记硬规则
 

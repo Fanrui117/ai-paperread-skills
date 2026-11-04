@@ -557,10 +557,6 @@ def cmd_verify(cfg, args) -> int:
 
 
 def cmd_run(cfg, args) -> int:
-    from .extract import extract_paper
-    from .packet import build_packet
-    from .translate import translate_paper
-
     state = load_state(cfg)
     papers = state.get("papers", {})
     if args.key:
@@ -575,23 +571,119 @@ def cmd_run(cfg, args) -> int:
         return 1
 
     for key in keys:
-        rec = papers.get(key, {})
-        short = rec.get("short", key)
-        paper_dir = cfg.library_root / rec.get("dir", "")
-        print(f"== {short}-{key}")
-        src = paper_dir / "src.md"
-        if args.force or not src.is_file():
-            res = extract_paper(cfg, key, backend=args.backend)
-            print(f"  extract: {res.pages} 页, 图 {res.figures}, 公式 {res.equations}, assets {len(res.assets)}")
+        rc = _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run, force=args.force)
+        if rc:
+            return rc
+    return 0
+
+
+def _pipeline_one(cfg, key: str, *, backend=None, dry_run: bool = False, force: bool = False) -> int:
+    """单篇 extract -> translate -> packet。"""
+    from .extract import extract_paper
+    from .packet import build_packet
+    from .translate import translate_paper
+
+    state = load_state(cfg)
+    rec = state.get("papers", {}).get(key, {})
+    if not rec:
+        print(f"[error] 状态里没有 {key}，先跑 `paperread add <标题/key>` 或 `paperread plan --apply`", file=sys.stderr)
+        return 1
+    short = rec.get("short", key)
+    paper_dir = cfg.library_root / rec.get("dir", "")
+    print(f"== {short}-{key}")
+    src = paper_dir / "src.md"
+    if force or not src.is_file():
+        res = extract_paper(cfg, key, backend=backend)
+        print(f"  extract: {res.pages} 页, 图 {res.figures}, 公式 {res.equations}, assets {len(res.assets)}")
+    else:
+        print("  extract: 跳过（已存在源文件，--force 可重抽）")
+    tr = translate_paper(cfg, key, dry_run=dry_run)
+    if tr.mode == "dry-run":
+        print("  translate: dry-run（英文+锚点）")
+    else:
+        print(f"  translate: {tr.translated}/{tr.blocks_total} 块, 字符 {tr.chars_in}->{tr.chars_out}")
+    pkt = build_packet(cfg, key)
+    print(f"  packet: {pkt}")
+    return 0
+
+
+def cmd_find(cfg, args) -> int:
+    """按 key / 标题 / DOI / 作者在 Zotero 库里查找（只读，不建目录）。"""
+    from .ingest import search_papers
+
+    lib = load_library_auto(cfg)
+    matches = search_papers(lib, args.query)
+    if not matches:
+        print(f"[find] 没有匹配「{args.query}」的论文")
+        return 1
+    print(f"[find] {len(matches)} 条匹配：")
+    for p in matches[:30]:
+        short = guess_short(p.title, p.key, cfg.names)
+        col = lib.main_collection(p)
+        col_name = "/".join(col.path) if col else "(未归集)"
+        pdf = "PDF✓" if p.pdf and p.pdf.exists else "PDF✗"
+        print(f"  {p.key}  {short:22s} {p.year:4s}  {col_name:20s} {pdf}  {p.title[:70]}")
+    return 0
+
+
+def cmd_add(cfg, args) -> int:
+    """按 key / 标题 / DOI 添加单篇到 vault（不扫描全库、不建其它论文目录）。"""
+    from .ingest import resolve_one
+
+    lib = load_library_auto(cfg)
+    paper, matches = resolve_one(lib, args.query)
+    if paper is None:
+        if matches:
+            print(f"[add] 「{args.query}」匹配到 {len(matches)} 篇，请用 key 精确指定：")
+            for p in matches[:20]:
+                print(f"  {p.key}  {p.title[:80]}")
         else:
-            print("  extract: 跳过（已存在源文件，--force 可重抽）")
-        tr = translate_paper(cfg, key, dry_run=args.dry_run)
-        if tr.mode == "dry-run":
-            print("  translate: dry-run（英文+锚点）")
-        else:
-            print(f"  translate: {tr.translated}/{tr.blocks_total} 块, 字符 {tr.chars_in}->{tr.chars_out}")
-        pkt = build_packet(cfg, key)
-        print(f"  packet: {pkt}")
+            print(f"[add] 没有找到「{args.query}」；可以先用 `paperread find <关键词>` 查看", file=sys.stderr)
+        return 1
+    plan = build_plan(lib, cfg, load_state(cfg), keys={paper.key})
+    if not plan.entries:
+        print(f"[add] {paper.key} 被 [ignore] 规则忽略", file=sys.stderr)
+        return 1
+    entry = plan.entries[0]
+    print(f"== {entry.short}-{paper.key}")
+    print(f"   标题: {entry.title}")
+    print(f"   目录: {entry.target}")
+    print(f"   状态: {entry.status}（{entry.detail}）")
+    if entry.status == "no_pdf":
+        print("[add] 没有可用的 PDF 附件，先把这个 PDF 加进 Zotero 再试", file=sys.stderr)
+        return 1
+    if entry.status != "exists":
+        created = apply_plan(plan, cfg, load_state(cfg))
+        print(f"   已创建目录 {len(created)} 个")
+    if args.run:
+        return _pipeline_one(cfg, paper.key, backend=args.backend, dry_run=args.dry_run)
+    print("   下一步：paperread extract <key> / paperread translate <key> / paperread packet <key>")
+    return 0
+
+
+def cmd_ingest(cfg, args) -> int:
+    """把 arXiv / DOI 论文写入 Zotero（可选集合），再按需处理进 vault。"""
+    from .ingest import ingest_paper, resolve_one
+
+    try:
+        key, meta = ingest_paper(cfg, args.identifier, collection=args.collection)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[ingest] 失败：{exc}", file=sys.stderr)
+        return 1
+    print(f"[ingest] 已写入 Zotero: {key}  {meta.title}")
+    if args.no_process:
+        return 0
+    lib = load_library_auto(cfg)
+    paper, _ = resolve_one(lib, key)
+    if paper is None:
+        print("[ingest] 条目已入库，但暂时读不到（Zotero 可能还没同步）；稍后 `paperread add <key>`")
+        return 0
+    plan = build_plan(lib, cfg, load_state(cfg), keys={key})
+    if plan.entries and plan.entries[0].status != "exists":
+        created = apply_plan(plan, cfg, load_state(cfg))
+        print(f"[ingest] 已创建目录 {len(created)} 个")
+    if args.run:
+        return _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run)
     return 0
 
 
@@ -688,6 +780,26 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--force", action="store_true", help="强制重新抽取")
     p_run.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端（默认取 config [extract].backend）")
     p_run.set_defaults(func=cmd_run)
+
+    p_find = sub.add_parser("find", aliases=["查找"], help="在 Zotero 库里按 key/标题/DOI/作者查找（只读）")
+    p_find.add_argument("query", help="key / 标题片段 / DOI / 作者")
+    p_find.set_defaults(func=cmd_find)
+
+    p_add = sub.add_parser("add", aliases=["添加"], help="添加单篇论文到 vault（不扫描全库）")
+    p_add.add_argument("query", help="key / 标题片段 / DOI")
+    p_add.add_argument("--run", action="store_true", help="建目录后立刻跑 extract -> translate -> packet")
+    p_add.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
+    p_add.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
+    p_add.set_defaults(func=cmd_add)
+
+    p_ing = sub.add_parser("ingest", aliases=["入库"], help="把 arXiv/DOI 论文写入 Zotero（可选集合），再处理进 vault")
+    p_ing.add_argument("identifier", help="arXiv ID / DOI / URL")
+    p_ing.add_argument("--collection", help="Zotero 集合名（写入后移动到该集合）")
+    p_ing.add_argument("--no-process", action="store_true", help="只写入 Zotero，不建 Obsidian 目录")
+    p_ing.add_argument("--run", action="store_true", help="建目录后立刻跑 extract -> translate -> packet")
+    p_ing.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
+    p_ing.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
+    p_ing.set_defaults(func=cmd_ingest)
     return parser
 
 

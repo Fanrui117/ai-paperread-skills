@@ -143,12 +143,15 @@ def _is_ignored(paper: Paper, lib: ZoteroLibrary, cfg: Config) -> bool:
     return False
 
 
-def build_plan(lib: ZoteroLibrary, cfg: Config, state: dict | None = None) -> Plan:
+def build_plan(lib: ZoteroLibrary, cfg: Config, state: dict | None = None, keys: set[str] | None = None) -> Plan:
+    """keys 非空时只规划这些论文（单篇处理用）。"""
     state = state if state is not None else load_state(cfg)
     plan = Plan(generated_at=datetime.now().isoformat(timespec="seconds"))
     known_keys = {p.key for p in lib.papers}
 
     for paper in lib.papers:
+        if keys is not None and paper.key not in keys:
+            continue
         if _is_ignored(paper, lib, cfg):
             continue
         short = guess_short(paper.title, paper.key, cfg.names)
