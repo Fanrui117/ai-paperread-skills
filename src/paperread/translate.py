@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -450,6 +451,12 @@ def translate_paper(
         cfg.translate_provider = provider
     if cfg.translate_provider == "agent" and not (cache_only or dry_run):
         raise RuntimeError("provider=agent 不调用外部 API：请用 --emit-tasks 导出、--import-json 导入，或加 --dry-run")
+    if cfg.translate_provider in ("baidu", "deepseek") and not (dry_run or cache_only):
+        print(
+            f"[translate] 使用 {cfg.translate_provider} API 翻译（会产生费用/消耗额度）；"
+            f"想零外部 API 请用 --provider agent（导出任务给 agent）",
+            file=sys.stderr,
+        )
     data = load_blocks(cfg, key)
     blocks = data["blocks"]
     short = data.get("short") or key

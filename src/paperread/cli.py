@@ -687,6 +687,32 @@ def cmd_ingest(cfg, args) -> int:
     return 0
 
 
+def cmd_notesync(cfg, args) -> int:
+    """把笔记里已被升级为 LaTeX 的公式图替换成 $$...$$。"""
+    from .notesync import sync_notes
+
+    if args.all:
+        keys = list(load_state(cfg).get("papers", {}).keys())
+    elif args.key:
+        keys = [args.key]
+    else:
+        print("[error] 需要指定 key 或 --all", file=sys.stderr)
+        return 1
+    total = 0
+    for key in keys:
+        try:
+            n, kept, files = sync_notes(cfg, key, apply=not args.dry_run)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[notesync] {key} 跳过：{exc}")
+            continue
+        if n or kept:
+            mode = "预览" if args.dry_run else "已写"
+            print(f"[notesync] {key}: {mode}替换 {n} 张公式图，保留 {kept} 张其它图 {files}")
+        total += n
+    print(f"[notesync] 共替换 {total} 张公式图" + ("（dry-run，未写文件）" if args.dry_run else ""))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="paperread", description="Zotero -> Obsidian 论文阅读流水线")
     parser.add_argument("--version", action="version", version=f"paperread {__version__}")
@@ -800,6 +826,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_ing.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
     p_ing.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
     p_ing.set_defaults(func=cmd_ingest)
+
+    p_ns = sub.add_parser("notesync", aliases=["笔记同步"], help="把笔记里已升级为 LaTeX 的公式图替换成 $$...$$")
+    p_ns.add_argument("key", nargs="?", help="Zotero item key（8 位）")
+    p_ns.add_argument("--all", action="store_true", help="处理所有已登记论文")
+    p_ns.add_argument("--dry-run", action="store_true", help="只预览，不写文件")
+    p_ns.set_defaults(func=cmd_notesync)
     return parser
 
 

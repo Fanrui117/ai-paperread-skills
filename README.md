@@ -127,6 +127,8 @@ Zotero 侧准备（只需一次）：
 | `baidu` | 百度翻译 appid + secret | 想全自动批量、可接受机翻质量 |
 | `deepseek` | DeepSeek API key | 想全自动且质量较好 |
 
+> `agent` 路线**不调用任何外部翻译 API**（不消耗 DeepSeek/百度余额）；`baidu` / `deepseek` 会在执行前打印「将产生费用」的提示，可用 `--dry-run` 只渲染英文。
+
 ```toml
 [translate]
 provider = "agent"          # agent | baidu | deepseek
@@ -267,6 +269,7 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `行内公式` | `mathfix <key> --emit-tasks \| --import-json <f>` | 中文译文里的行内数学 → `$...$` |
 | `表格` | `tables <key> [--import-json <f>]` | MinerU HTML 表格 → Markdown 表格（表格内公式可渲染） |
 | `修源` | `fixsrc <key> --import-json <f>` | 修复被 PDF 抽取破坏的源段落（`{id: {src, zh}}`，缓存自动重映射） |
+| `笔记同步` | `notesync <key> \| --all [--dry-run]` | 把笔记里已升级为 LaTeX 的公式图替换成 `$$...$$`（其它图保留） |
 | `页面` | `page <key> <n>` | 渲染 PDF 第 n 页为 PNG（agent 核对公式/表格用） |
 | `校验` | `verify <key> \| --all` | 校验链接 / 锚点 / 图片 / frontmatter / 引文 |
 | `一键运行` | `run <key> \| --collection X` | extract → translate → packet 一条龙 |

@@ -97,6 +97,9 @@ def import_formulas(cfg: Config, key: str, json_path: Path) -> tuple[int, Path]:
         latex = payload.get(b.get("id"))
         if not isinstance(latex, str) or not latex.strip():
             continue
+        m = EQ_IMAGE_RE.search(b.get("text", ""))
+        if m:
+            b["orig_image"] = m.group(0).split("assets/")[-1]
         b["kind"] = "equation"
         b["text"] = "$$\n" + _latex_body(latex) + "\n$$"
         b["latex"] = _latex_body(latex)
