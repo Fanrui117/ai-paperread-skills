@@ -204,8 +204,10 @@ paperread add <key> --run           # 建这一篇的目录并立刻 extract →
 # 或分步：
 paperread add <key>                 # 只建目录
 paperread extract <key>             # PDF → src.md + assets/ + blocks.json
+paperread formulas <key> --emit-tasks   # 公式图 → LaTeX（agent 识别后 --import-json；或 extract --backend mineru）
 paperread translate <key> --emit-tasks   # 交给 agent 翻译，再 --import-json 导入
 paperread packet <key>              # 写作包 → agent 写 note.md / summary.md
+paperread notesync <key>            # 笔记里的公式图 → LaTeX
 paperread verify <key>              # 校验链接/锚点/图片/引文
 ```
 
@@ -286,6 +288,7 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `添加` | `add <query> [--run]` | 只处理单篇：按 key/标题/DOI 建目录，`--run` 直接跑流水线 |
 | `入库` | `ingest <arxiv\|doi\|url> [--collection] [--run]` | 通过 Zotero Connector 写入新论文（可选集合），再处理进 vault |
 | `抽取` | `extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + `blocks.json` |
+| `公式` | `formulas <key> --emit-tasks \| --import-json <f>` | 公式图 → `$$...$$` LaTeX（保留锚点）；`run/add/ingest --formulas` 可自动导出任务 |
 | `翻译` | `translate <key> [--dry-run] [--provider ...] [--main-only]` | 生成中英对照 `full.md` |
 | `翻译` | `translate <key> --emit-tasks` / `--import-json <f>` | agent 翻译工作流（导出块 → 逐块译 → 导入） |
 | `写作包` | `packet <key>` | 笔记写作包（大纲 / 锚点 / 图清单 / 摘要） |

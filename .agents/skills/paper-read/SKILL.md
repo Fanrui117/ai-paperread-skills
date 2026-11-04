@@ -61,12 +61,14 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 1. **定位论文**：`paperread find <关键词/DOI/key>`（只读）；找不到时让用户先入库（浏览器插件或 `paperread ingest`）。
 2. **建目录**：`paperread add <key>`（只建这一篇；`--run` 可一步跑 extract→translate→packet）。
 3. **抽取**：`paperread extract <key>`；用 read_image 抽查 `assets/fig1_*` 是否切对。
+3.5 **公式升级（标准步骤）**：`paperread formulas <key> --emit-tasks` → 逐张 read_image 识别公式 → 写 `{block_id: latex}` → `--import-json` 替换。（`extract --backend mineru` 解析的论文自带 LaTeX，可跳过）
 4. **翻译（agent 工作流，推荐）**：
    - `paperread translate <key> --emit-tasks` 导出待译块；
    - 逐块翻译成中文，写 `{"<block_id>": "<中文>"}` JSON（标题不带 `##` 前缀，公式/术语原样保留）；
    - `paperread translate <key> --provider agent --import-json <file>` 渲染 `full.md`。
 5. **写笔记**：读 `templates/note-template.md` 与写作包，写 `note.md`；再写 `summary.md`。
-6. **校验**：`paperread verify <key>`，全绿才交付。
+6. **笔记同步**：`paperread notesync <key>`（把笔记里旧的公式图换成 LaTeX）。
+7. **校验**：`paperread verify <key>`，全绿才交付。
 
 > 全库场景（首次建库/批量）：`paperread scan` → `paperread plan --apply` → `paperread status`。
 

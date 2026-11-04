@@ -571,15 +571,18 @@ def cmd_run(cfg, args) -> int:
         return 1
 
     for key in keys:
-        rc = _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run, force=args.force)
+        rc = _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run, force=args.force, formulas=args.formulas)
         if rc:
             return rc
     return 0
 
 
-def _pipeline_one(cfg, key: str, *, backend=None, dry_run: bool = False, force: bool = False) -> int:
-    """单篇 extract -> translate -> packet。"""
+def _pipeline_one(
+    cfg, key: str, *, backend=None, dry_run: bool = False, force: bool = False, formulas: bool = False
+) -> int:
+    """单篇 extract -> [formulas 任务] -> translate -> packet。"""
     from .extract import extract_paper
+    from .formulas import emit_formula_tasks
     from .packet import build_packet
     from .translate import translate_paper
 
@@ -597,6 +600,9 @@ def _pipeline_one(cfg, key: str, *, backend=None, dry_run: bool = False, force: 
         print(f"  extract: {res.pages} 页, 图 {res.figures}, 公式 {res.equations}, assets {len(res.assets)}")
     else:
         print("  extract: 跳过（已存在源文件，--force 可重抽）")
+    if formulas:
+        task = emit_formula_tasks(cfg, key)
+        print(f"  formulas: 已导出公式任务 {task}（agent 识别后 --import-json 导入；MinerU 后端解析则自带 LaTeX）")
     if cfg.translate_provider == "agent" and not dry_run:
         # agent 路线不调用外部 API：先渲染英文全文，翻译由 agent 用 emit-tasks/import-json 完成
         print("  translate: provider=agent，先渲染英文+锚点（之后用 --emit-tasks 交给 agent 翻译）")
@@ -660,7 +666,7 @@ def cmd_add(cfg, args) -> int:
         created = apply_plan(plan, cfg, load_state(cfg))
         print(f"   已创建目录 {len(created)} 个")
     if args.run:
-        return _pipeline_one(cfg, paper.key, backend=args.backend, dry_run=args.dry_run)
+        return _pipeline_one(cfg, paper.key, backend=args.backend, dry_run=args.dry_run, formulas=args.formulas)
     print("   下一步：paperread extract <key> / paperread translate <key> / paperread packet <key>")
     return 0
 
@@ -687,7 +693,7 @@ def cmd_ingest(cfg, args) -> int:
         created = apply_plan(plan, cfg, load_state(cfg))
         print(f"[ingest] 已创建目录 {len(created)} 个")
     if args.run:
-        return _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run)
+        return _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run, formulas=args.formulas)
     return 0
 
 
@@ -789,7 +795,7 @@ def cmd_collect(cfg, args) -> int:
             plan = build_plan(lib, cfg, load_state(cfg), keys={key})
             if plan.entries and plan.entries[0].status != "exists":
                 apply_plan(plan, cfg, load_state(cfg))
-            _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run)
+            _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run, formulas=args.formulas)
     print(f"[collect] 完成：入库 {len(keys)} 篇；接着可 `paperread packet <key>` 让 agent 写笔记")
     return 0
 
@@ -886,6 +892,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
     p_run.add_argument("--force", action="store_true", help="强制重新抽取")
     p_run.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端（默认取 config [extract].backend）")
+    p_run.add_argument("--formulas", action="store_true", help="导出公式任务（agent 识别后升级为 LaTeX）")
     p_run.set_defaults(func=cmd_run)
 
     p_find = sub.add_parser("find", aliases=["查找"], help="在 Zotero 库里按 key/标题/DOI/作者查找（只读）")
@@ -897,6 +904,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_add.add_argument("--run", action="store_true", help="建目录后立刻跑 extract -> translate -> packet")
     p_add.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
     p_add.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
+    p_add.add_argument("--formulas", action="store_true", help="导出公式任务（agent 识别后升级为 LaTeX）")
     p_add.set_defaults(func=cmd_add)
 
     p_ing = sub.add_parser("ingest", aliases=["入库"], help="把 arXiv/DOI 论文写入 Zotero（可选集合），再处理进 vault")
@@ -906,6 +914,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_ing.add_argument("--run", action="store_true", help="建目录后立刻跑 extract -> translate -> packet")
     p_ing.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
     p_ing.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
+    p_ing.add_argument("--formulas", action="store_true", help="导出公式任务（agent 识别后升级为 LaTeX）")
     p_ing.set_defaults(func=cmd_ingest)
 
     p_ns = sub.add_parser("notesync", aliases=["笔记同步"], help="把笔记里已升级为 LaTeX 的公式图替换成 $$...$$")
@@ -928,6 +937,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_col.add_argument("--run", action="store_true", help="入库后立刻 extract -> translate -> packet")
     p_col.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
     p_col.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
+    p_col.add_argument("--formulas", action="store_true", help="导出公式任务（agent 识别后升级为 LaTeX）")
     p_col.set_defaults(func=cmd_collect)
     return parser
 
