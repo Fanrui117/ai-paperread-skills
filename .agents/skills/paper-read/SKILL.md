@@ -20,7 +20,7 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 <vault>/<集合>/<简称>-<ZoteroKey>/
 ├── note.md       # 精读笔记
 ├── summary.md    # 一页速览
-├── full.md       # 中英对照全文（段末 ^pN 锚点）
+├── translated.md # 中英对照全文（段末 ^pN 锚点）
 ├── src.md        # 英文源（翻译输入）
 └── assets/       # 图片（figN_*.png / eqN_*.png / imgNNN.jpg）
 ```
@@ -39,12 +39,12 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 | `paperread ingest <arxiv\|doi\|url> [--collection] [--run]` | 写入 Zotero（Connector API，可选集合），再处理进 vault |
 | `paperread plan` | 目录规划预览；`--apply` 创建目录并写 state |
 | `paperread extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + blocks.json；`--backend mineru` 用云端 API（LaTeX 公式 + HTML 表格） |
-| `paperread translate <key> [--dry-run] [--provider baidu\|agent] [--main-only]` | 生成中英对照 `full.md` |
+| `paperread translate <key> [--dry-run] [--provider baidu\|agent] [--main-only]` | 生成中英对照 `translated.md` |
 | `paperread translate <key> --emit-tasks` | 导出待翻译块（`work/<key>/translate_tasks/partNN.json`） |
 | `paperread translate <key> --provider agent --import-json <file>` | 导入 agent 译文 `{block_id: 中文}` 并渲染全文（不调用外部 API） |
 | `paperread packet <key>` | 写作包（大纲+锚点+图清单+摘要）→ `vault/.paperread/packets/<key>.md` |
 | `paperread formulas <key> --emit-tasks` | 导出待识别公式（`assets/eq*.png` + 短宽条图 → LaTeX 任务） |
-| `paperread formulas <key> --import-json <f>` | 导入 `{block_id: latex}`，原地替换公式并重渲染 `full.md`（保留锚点） |
+| `paperread formulas <key> --import-json <f>` | 导入 `{block_id: latex}`，原地替换公式并重渲染 `translated.md`（保留锚点） |
 | `paperread tables <key>` | 用 MinerU 的 HTML 表格升级管道表格（保留 rowspan/colspan 与锚点），自动转成 Markdown 表格（Obsidian 表格内 `$...$` 才能渲染） |
 | `paperread tables <key> --import-json <f>` | 手工/agent 提供 `{block_id: 表格文本}` 并重渲染 |
 | `paperread fixsrc <key> --import-json <f>` | 修正被 PDF 抽取破坏的源段落：`{block_id: {src, zh}}`，自动重映射译文缓存 |
@@ -65,7 +65,7 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 4. **翻译（agent 工作流，推荐）**：
    - `paperread translate <key> --emit-tasks` 导出待译块；
    - 逐块翻译成中文，写 `{"<block_id>": "<中文>"}` JSON（标题不带 `##` 前缀，公式/术语原样保留）；
-   - `paperread translate <key> --provider agent --import-json <file>` 渲染 `full.md`。
+   - `paperread translate <key> --provider agent --import-json <file>` 渲染 `translated.md`。
 5. **写笔记**：读 `templates/note-template.md` 与写作包，写 `note.md`；再写 `summary.md`。
 6. **笔记同步**：`paperread notesync <key>`（把笔记里旧的公式图换成 LaTeX）。
 7. **校验**：`paperread verify <key>`，全绿才交付。
@@ -86,7 +86,7 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 
 ## 笔记硬规则
 
-- 出处用相对链接：`[↓原文](full.md#^pN)`；图片 `![](assets/figN_xxx.png)`；跨论文 `[PaperB](../PaperB-YYYYYYYY/note.md)`。
+- 出处用相对链接：`[↓原文](translated.md#^pN)`；图片 `![](assets/figN_xxx.png)`；同一图的多个裁片用并排表格（每行 3 张）；跨论文 `[PaperB](../PaperB-YYYYYYYY/note.md)`。
 - 公式统一用 Markdown 数学语法：**行内 `$...$`**、**行间 `$$...$$`**（不要用图片或 `_x_` 模拟上下标）。
 - 不编造数字；原文没有的不写；不确定处标注「原文未明确」。
 - 不覆盖已有笔记：写前检查文件是否存在，存在则先问用户。

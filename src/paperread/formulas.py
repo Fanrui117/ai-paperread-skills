@@ -5,7 +5,7 @@
     -> work/<key>/formula_tasks.json  [{id, image, page}]
   agent 逐张 read_image 识别公式，写 {"<block_id>": "<latex>"}
   paperread formulas <key> --import-json <file>
-    -> 更新 blocks.json（kind=equation, text=$$...$$），重渲染 full.md，并同步 src.md
+    -> 更新 blocks.json（kind=equation, text=$$...$$），重渲染 translated.md，并同步 src.md
 """
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ def _latex_body(latex: str) -> str:
 
 
 def import_formulas(cfg: Config, key: str, json_path: Path) -> tuple[int, Path]:
-    """返回 (替换数量, 重渲染后的 full.md)。"""
+    """返回 (替换数量, 重渲染后的 translated.md)。"""
     payload = load_json(Path(json_path), None)
     if not isinstance(payload, dict):
         raise RuntimeError(f"公式结果格式不对（应为 {{block_id: latex}}）：{json_path}")

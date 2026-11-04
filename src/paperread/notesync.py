@@ -1,7 +1,7 @@
 """笔记同步：把 note.md / summary.md 里「已经被升级为 LaTeX 的公式图」替换成 $$...$$。
 
 背景：笔记是早期写的，里面用 ![](assets/eq1_p5.png) 嵌入公式图；
-后来 `paperread formulas` 把 full.md 里的公式图换成了 LaTeX，但笔记还指向图片。
+后来 `paperread formulas` 把 translated.md 里的公式图换成了 LaTeX，但笔记还指向图片。
 本命令按 blocks.json 的 orig_image/latex 映射替换，其余图片（真图）保持不动。
 """
 from __future__ import annotations

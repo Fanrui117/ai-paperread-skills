@@ -169,7 +169,9 @@ def cmd_status(cfg, args) -> int:
             short = rec.get("short") or guess_short(paper.title, paper.key, cfg.names)
             folder = rec.get("dir", "").split("/")[-1] or folder_name(short, paper.key)
             d = cfg.library_root / rec.get("dir", "") if rec.get("dir") else None
-            ft = d / "full.md" if d else None
+            ft = (d / "translated.md") if d else None
+            if d and not (ft and ft.is_file()):
+                ft = d / "full.md"  # 兼容旧文件名
             bilingual = bool(ft and ft.is_file() and re.search(r"[\u4e00-\u9fff]", ft.read_text(encoding="utf-8", errors="ignore")))
             has_ft = bool(ft and ft.is_file())
             note = bool(d and (d / "note.md").is_file())
@@ -365,7 +367,8 @@ def cmd_index(cfg, args) -> int:
             base = f"{reldir}/" if reldir else ""
             note = f"[精读]({base}note.md)" if d and (d / "note.md").is_file() else "精读（缺）"
             summ = f"[速览]({base}summary.md)" if d and (d / "summary.md").is_file() else "速览（缺）"
-            ft = f"[全文]({base}full.md)" if d and (d / "full.md").is_file() else "全文（缺）"
+            ft_name = "translated.md" if d and (d / "translated.md").is_file() else "full.md"
+            ft = f"[全文]({base}{ft_name})" if d and (d / ft_name).is_file() else "全文（缺）"
             pub = (paper.publication or "").strip()
             if paper.year and not pub.startswith(paper.year):
                 pub = f"{paper.year} {pub}".strip()
@@ -861,7 +864,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_fm = sub.add_parser("formulas", aliases=["公式"], help="公式升级：assets/eq*.png -> LaTeX（保留锚点）")
     p_fm.add_argument("key", help="Zotero item key（8 位）")
     p_fm.add_argument("--emit-tasks", action="store_true", help="导出待识别公式任务")
-    p_fm.add_argument("--import-json", default=None, help="导入 {block_id: latex} 并重渲染 full.md")
+    p_fm.add_argument("--import-json", default=None, help="导入 {block_id: latex} 并重渲染 translated.md")
     p_fm.set_defaults(func=cmd_formulas)
 
     p_mf = sub.add_parser("mathfix", aliases=["行内公式"], help="行内公式修正：中文译文里的数学片段 -> $...$")

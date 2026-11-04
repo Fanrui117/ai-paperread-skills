@@ -44,7 +44,8 @@ def folder_name(short: str, key: str) -> str:
 # 论文目录内的固定文件名（简称已在目录名里，文件名不再重复）
 NOTE_FILE = "note.md"
 SUMMARY_FILE = "summary.md"
-FULLTEXT_FILE = "full.md"
+FULLTEXT_FILE = "translated.md"  # 中英对照全文（旧名 full.md，保留兼容）
+LEGACY_FULLTEXT = "full.md"
 SRC_FILE = "src.md"
 ASSETS_DIR = "assets"
 

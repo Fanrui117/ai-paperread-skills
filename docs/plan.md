@@ -34,7 +34,7 @@
 │   ├── SomePaper-XXXXXXXX\            # <AI简称>-<ZoteroKey>
 │   │   ├── note.md                  # 精读笔记（对齐样例格式）
 │   │   ├── summary.md               # 一页速览
-│   │   ├── full.md                  # 中英对照全文（^pN 锚点）
+│   │   ├── translated.md            # 中英对照全文（^pN 锚点）
 │   │   ├── src.md                   # 英文源（翻译输入）
 │   │   └── assets\
 │   │       ├── fig1_task_overview.png
@@ -49,8 +49,8 @@
     └── state.json                   # 增量状态（key → 目录/哈希/产物时间）
 ```
 
-命名约定：**文件夹带 key（稳定、防重名），文件用固定短名（`note.md` / `summary.md` / `full.md` / `src.md`），assets 内文件不再带论文前缀**（已在论文目录内）。
-链接约定：笔记里用**相对 markdown 链接**（`[↓原文](full.md#^pN)`、`![](assets/x.png)`、跨论文 `[PIPs](../ThirdPaper-ZZZZZZZZ/note.md)`），因为 Obsidian 的 `![[assets/x]]` 是 vault 根相对，在子目录里会找不到。
+命名约定：**文件夹带 key（稳定、防重名），文件用固定短名（`note.md` / `summary.md` / `translated.md` / `src.md`），assets 内文件不再带论文前缀**（已在论文目录内）。
+链接约定：笔记里用**相对 markdown 链接**（`[↓原文](translated.md#^pN)`、`![](assets/x.png)`、跨论文 `[PIPs](../ThirdPaper-ZZZZZZZZ/note.md)`），因为 Obsidian 的 `![[assets/x]]` 是 vault 根相对，在子目录里会找不到。
 
 - 集合名做文件名清洗（`<>:"/\|?*` → `-`），保留中文。
 - 一篇论文属于多个集合时：主目录放最浅/字典序最小的集合；其余集合记在 state，P2 可选生成 redirect 笔记。
@@ -58,7 +58,7 @@
 
 ## 3. 文件规范
 
-### 3.1 `full.md`（中英对照全文）
+### 3.1 `translated.md`（中英对照全文，旧名 `full.md` 兼容）
 
 ```markdown
 ---
@@ -98,7 +98,7 @@ Generic motion understanding from video involves not only tracking objects... ^p
 `# 简称 — 全称` → 一句话总结（引用块）→ 主图 → Metadata 表 → `## 1. 问题动机` → `## 2. 任务定义` → `## 3. 方法`（分子节）→ `## 4. 训练数据 & 实验设置` → `## 5. 实验` → `## 6. 实现细节速查` → `## 7. 局限`（作者自述 + 个人评注）→ `## 8. 阅读总结`（可迁移思想 / 评测技巧 / 与本课题关系 / 不适用场景 / 阅读线索）。
 
 链接规则：
-- 引用原文句：`> 原文："..."（[↓原文](full.md#^p87)）`
+- 引用原文句：`> 原文："..."（[↓原文](translated.md#^p87)）`
 - 引用图片：`![](assets/fig1_task_overview.png)` + 斜体图注写「该看什么」
 - 笔记间：`[PIPs](../ThirdPaper-ZZZZZZZZ/note.md)`
 - frontmatter：`paper_key / title / collection / tags / status / date`

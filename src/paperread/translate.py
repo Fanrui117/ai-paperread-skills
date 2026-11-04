@@ -382,7 +382,7 @@ def _to_md_image(text: str) -> str:
 
 
 def render_src(blocks: list[dict]) -> str:
-    """从 blocks 重新生成英文源 src.md（保持与 full.md 同源）。"""
+    """从 blocks 重新生成英文源 src.md（保持与 translated.md 同源）。"""
     parts: list[str] = []
     for b in blocks:
         kind = b.get("kind", "")
@@ -391,6 +391,30 @@ def render_src(blocks: list[dict]) -> str:
             text = _to_md_image(text)
         parts.append(text)
     return "\n\n".join(parts).rstrip() + "\n"
+
+
+def _img_name(text: str) -> str:
+    m = re.search(r"assets/([^)\]\"'\s|]+)", text)
+    return m.group(1) if m else ""
+
+
+def _img_base(name: str) -> str:
+    """同一张图的裁片归到同一个 base：fig12_x.png / fig12_x_2.png / thumb3_p24.png。"""
+    stem = Path(name).stem
+    stem = re.sub(r"^thumb\d+", "thumb", stem)
+    stem = re.sub(r"_\d+$", "", stem)
+    return stem
+
+
+def _render_image_grid(images: list[str], per_row: int = 3) -> list[str]:
+    """把多张图渲染成 Markdown 表格网格（Obsidian 里并排显示）。"""
+    rows = [images[i : i + per_row] for i in range(0, len(images), per_row)]
+    width = len(rows[0])
+    out = ["| " + " | ".join(rows[0]) + " |", "|" + "---|" * width]
+    for row in rows[1:]:
+        cells = row + [""] * (width - len(row))
+        out.append("| " + " | ".join(cells) + " |")
+    return out
 
 
 def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: dict[str, str], meta: dict) -> str:
@@ -415,35 +439,60 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
     lines.append("")
 
     seen_h1 = False
-    for b in blocks:
+    i = 0
+    while i < len(blocks):
+        b = blocks[i]
         kind = b["kind"]
         text = b.get("text", "")
         bid = b.get("id", "")
         if kind == "pagebreak":
             lines.append(text)
             lines.append("")
+            i += 1
             continue
         if kind == "equation":
             lines.append(text)
             if bid:
                 lines.append(f"^{bid}")
             lines.append("")
+            i += 1
             continue
         if kind == "image":
-            lines.append(_to_md_image(text))
-            lines.append("")
+            # 收集连续图片块：同一张图的多个裁片并排显示（Markdown 表格网格）
+            run = [b]
+            j = i + 1
+            while j < len(blocks) and blocks[j].get("kind") == "image":
+                run.append(blocks[j])
+                j += 1
+            groups: list[tuple[str, list[str]]] = []
+            for img in run:
+                md_img = _to_md_image(img.get("text", ""))
+                base = _img_base(_img_name(img.get("text", "")))
+                if groups and groups[-1][0] == base:
+                    groups[-1][1].append(md_img)
+                else:
+                    groups.append((base, [md_img]))
+            for _, imgs in groups:
+                if len(imgs) > 1:
+                    lines.extend(_render_image_grid(imgs))
+                else:
+                    lines.append(imgs[0])
+                lines.append("")
+            i = j
             continue
         if kind == "table":
             lines.append(_to_md_image(text))
             if bid:
                 lines.append(f"^{bid}")
             lines.append("")
+            i += 1
             continue
         if kind == "heading":
             # 跳过与 frontmatter 标题重复的 PDF 首页大标题
             plain = text.lstrip("# ").replace("**", "").strip()
             if not seen_h1 and plain.lower() == title.lower():
                 seen_h1 = True
+                i += 1
                 continue
             seen_h1 = True
             t = zh.get(bid) if bid else ""
@@ -454,6 +503,7 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
                 head = f"{text}（{t}）"
             lines.append(head)
             lines.append("")
+            i += 1
             continue
         # para / caption
         anchor = f" ^{bid}" if bid else ""
@@ -464,6 +514,7 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
             # 中文译文直接接在英文下面（不用 > 引用块，避免把后面的表格/代码块吞进 blockquote）
             lines.append(t)
             lines.append("")
+        i += 1
     return "\n".join(lines).rstrip() + "\n"
 
 
@@ -502,7 +553,7 @@ def translate_paper(
     rec = state.get("papers", {}).get(key, {})
     paper_dir = cfg.library_root / rec.get("dir", "") if rec.get("dir") else cfg.library_root
     paper_dir.mkdir(parents=True, exist_ok=True)
-    out = paper_dir / "full.md"
+    out = paper_dir / "translated.md"
     out.write_text(md, encoding="utf-8")
 
     figures = sum(1 for b in blocks if b["kind"] == "image")

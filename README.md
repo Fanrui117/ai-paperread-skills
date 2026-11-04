@@ -10,9 +10,9 @@
 
 ```
 <vault>/<集合>/<简称>-<ZoteroKey>/
-├── note.md       精读笔记（引用带 [↓原文](full.md#^pN) 回链）
+├── note.md       精读笔记（引用带 [↓原文](translated.md#^pN) 回链）
 ├── summary.md    一页速览
-├── full.md       中英对照全文（每段 ^pN 锚点）
+├── translated.md 中英对照全文（每段 ^pN 锚点）
 ├── src.md        英文源
 └── assets/       图片（fig*.png / eq*.png / img*.jpg）
 ```
@@ -49,7 +49,7 @@
 | Zotero | 论文元数据 + PDF 附件 | 扫描只读；`ingest` 时通过 Connector 写入 |
 | paperread CLI | 扫描、规划、抽取、翻译编排、校验 | 读 Zotero；写 `<vault>/.paperread/` 与论文目录 |
 | DSH Agent | 翻译、精读笔记、公式/表格修复、页图核对 | 读任务 JSON；写结果 JSON；不直接改库 |
-| Obsidian | 阅读 note.md / full.md / 图表 | 只读展示 |
+| Obsidian | 阅读 note.md / translated.md / 图表 | 只读展示 |
 
 ---
 
@@ -289,7 +289,7 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `入库` | `ingest <arxiv\|doi\|url> [--collection] [--run]` | 通过 Zotero Connector 写入新论文（可选集合），再处理进 vault |
 | `抽取` | `extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + `blocks.json` |
 | `公式` | `formulas <key> --emit-tasks \| --import-json <f>` | 公式图 → `$$...$$` LaTeX（保留锚点）；`run/add/ingest --formulas` 可自动导出任务 |
-| `翻译` | `translate <key> [--dry-run] [--provider ...] [--main-only]` | 生成中英对照 `full.md` |
+| `翻译` | `translate <key> [--dry-run] [--provider ...] [--main-only]` | 生成中英对照 `translated.md` |
 | `翻译` | `translate <key> --emit-tasks` / `--import-json <f>` | agent 翻译工作流（导出块 → 逐块译 → 导入） |
 | `写作包` | `packet <key>` | 笔记写作包（大纲 / 锚点 / 图清单 / 摘要） |
 | `行内公式` | `mathfix <key> --emit-tasks \| --import-json <f>` | 中文译文里的行内数学 → `$...$` |
@@ -331,13 +331,13 @@ paperread 校验 --all
 |---|---|
 | `note.md` | 精读笔记（结构见 `templates/note-template.md`） |
 | `summary.md` | 一页速览 |
-| `full.md` | 中英对照全文（每段 `^pN` 锚点） |
+| `translated.md` | 中英对照全文（每段 `^pN` 锚点；旧名 `full.md` 仍兼容） |
 | `src.md` | 英文源（翻译输入，`fixsrc` 会同步） |
 
 ### 6.2 链接与数学（重要）
 
 - 笔记里一律用**相对 Markdown 链接**：
-  - 原文回链：`[↓原文](full.md#^p7)`
+  - 原文回链：`[↓原文](translated.md#^p7)`
   - 图片：`![](assets/fig1_xxx.png)`（Obsidian 子目录里 `![[assets/x]]` 是 vault 根相对，会找不到）
   - 跨论文：`[PaperB](../PaperB-YYYYYYYY/note.md)`
 - 公式：**行内 `$...$`、行间 `$$...$$`**；不要用图片或 `_x_` 模拟上下标。

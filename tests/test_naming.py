@@ -16,7 +16,7 @@ def test_folder_and_files():
     files = paper_files("TAP-Vid")
     assert files["note"] == "note.md"
     assert files["summary"] == "summary.md"
-    assert files["fulltext"] == "full.md"
+    assert files["fulltext"] == "translated.md"
     assert files["src"] == "src.md"
 
 

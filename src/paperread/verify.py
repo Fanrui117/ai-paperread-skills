@@ -3,10 +3,10 @@
 文件命名约定（v2）：
   <论文目录>/note.md      精读笔记
   <论文目录>/summary.md   一页速览
-  <论文目录>/full.md      中英对照全文（^pN 锚点）
+  <论文目录>/translated.md  中英对照全文（^pN 锚点；旧名 full.md 兼容）
   <论文目录>/src.md       英文源
   <论文目录>/assets/      图片
-链接统一用相对 markdown：[↓原文](full.md#^p7)、[PaperB](../PaperB-YYYYYYYY/note.md)
+链接统一用相对 markdown：[↓原文](translated.md#^p7)、[PaperB](../PaperB-YYYYYYYY/note.md)
 （兼容旧的 [[<简称>_fulltext#^p7|↓原文]] 写法）
 """
 from __future__ import annotations
@@ -20,7 +20,7 @@ import frontmatter
 from .config import Config
 from .plan import load_state
 
-FULLTEXT = "full.md"
+FULLTEXT = "translated.md"
 SRC = "src.md"
 
 WIKILINK_RE = re.compile(r"(?<!!)\[\[([^\]]+)\]\]")
@@ -96,8 +96,12 @@ def verify_paper(cfg: Config, key: str) -> VerifyResult:
 
     fulltext = paper_dir / FULLTEXT
     if not fulltext.is_file():
+        legacy_full = paper_dir / "full.md"
         legacy = next(iter(sorted(paper_dir.glob("*_fulltext.md"))), None)
-        if legacy is not None:
+        if legacy_full.is_file():
+            fulltext = legacy_full
+            res.issues.append(Issue("warn", "全文仍是旧文件名 full.md，建议重跑 translate 或改名 translated.md"))
+        elif legacy is not None:
             fulltext = legacy
             res.issues.append(Issue("warn", f"全文仍是旧文件名 {legacy.name}，建议重跑 translate"))
         else:

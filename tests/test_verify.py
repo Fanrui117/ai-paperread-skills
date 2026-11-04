@@ -16,7 +16,7 @@ def setup_paper(tmp_path: Path) -> Config:
         "This is the first paragraph. ^p7\n\n"
         "This is the second paragraph. ^p8\n"
     )
-    (paper_dir / "full.md").write_text(fulltext, encoding="utf-8")
+    (paper_dir / "translated.md").write_text(fulltext, encoding="utf-8")
     save_json(cfg.state_json, {"version": 1, "papers": {"AAAA1111": {"short": "Alpha", "dir": "6DPose/Alpha-AAAA1111"}}})
     return cfg
 
@@ -27,8 +27,8 @@ def test_verify_all_green(tmp_path):
     note.write_text(
         "---\npaper_key: AAAA1111\ntitle: Alpha\n---\n\n"
         "![](assets/fig1_x.png)\n\n"
-        "> 原文：\"This is the first paragraph.\"（[↓原文](full.md#^p7)）\n\n"
-        "另一处引用（[↓原文](full.md#^p8)）。\n",
+        "> 原文：\"This is the first paragraph.\"（[↓原文](translated.md#^p7)）\n\n"
+        "另一处引用（[↓原文](translated.md#^p8)）。\n",
         encoding="utf-8",
     )
     res = verify_paper(cfg, "AAAA1111")
@@ -43,7 +43,7 @@ def test_verify_bad_anchor_and_missing_image(tmp_path):
     note = cfg.library_root / "6DPose" / "Alpha-AAAA1111" / "note.md"
     note.write_text(
         "---\npaper_key: AAAA1111\ntitle: Alpha\n---\n\n"
-        "坏锚点（[↓原文](full.md#^p999)）\n\n"
+        "坏锚点（[↓原文](translated.md#^p999)）\n\n"
         "缺图 ![](assets/nope.png)\n",
         encoding="utf-8",
     )

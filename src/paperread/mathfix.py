@@ -2,7 +2,7 @@
 
   paperread mathfix <key> --emit-tasks   -> work/<key>/mathfix_tasks/partNN.json [{id, source, zh}]
   agent 把 zh 里的数学片段包成 $...$，写 {"<block_id>": "<新中文>"}
-  paperread mathfix <key> --import-json <f>  -> 更新 agent 翻译缓存并重渲染 full.md
+  paperread mathfix <key> --import-json <f>  -> 更新 agent 翻译缓存并重渲染 translated.md
 """
 from __future__ import annotations
 

@@ -15,13 +15,15 @@ def build_packet(cfg: Config, key: str) -> Path:
     short = data.get("short") or key
     state = load_state(cfg).get("papers", {}).get(key, {})
     paper_dir = cfg.library_root / state.get("dir", "")
-    fulltext = paper_dir / "full.md"
+    fulltext = paper_dir / "translated.md"
+    if not fulltext.is_file():
+        fulltext = paper_dir / "full.md"  # 兼容旧文件名
     if not fulltext.is_file():
         fulltext = paper_dir / "src.md"
 
     lib = load_json(cfg.library_json, {}) or {}
     paper = next((p for p in lib.get("papers", []) if p.get("key") == key), {})
-    if not paper.get("title") and fulltext.is_file() and fulltext.name == "full.md":
+    if not paper.get("title") and fulltext.is_file() and fulltext.name in ("translated.md", "full.md"):
         # library 快照可能还没刷新：退回 full.md frontmatter 的元数据
         try:
             import frontmatter
@@ -103,7 +105,7 @@ def build_packet(cfg: Config, key: str) -> Path:
     lines.append("## 写作要求")
     lines.append("")
     lines.append("- 结构严格按 `templates/note-template.md`（Metadata 表 + 8 节）。")
-    lines.append("- 每个论断/数字/结论附原文引用与 `[↓原文](full.md#^pN)` 相对链接。")
+    lines.append("- 每个论断/数字/结论附原文引用与 `[↓原文](translated.md#^pN)` 相对链接。")
     lines.append("- 图片用 `![](assets/figN_xxx.png)` 相对路径，图注斜体写「该看什么」。")
     lines.append("- 公式用 Markdown 数学语法：行内 `$...$`、行间 `$$...$$`（不要用图片或 `_x_` 模拟上下标）。")
     lines.append("- 跨论文链接用 `[PaperB](../PaperB-YYYYYYYY/note.md)` 形式（相对路径）。")
