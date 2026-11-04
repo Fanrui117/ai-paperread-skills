@@ -33,6 +33,8 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 | `paperread doctor` | 环境自检（配置 / Zotero / vault / key / 依赖） |
 | `paperread scan` | 只读扫描 Zotero → `vault/.paperread/library.json` + 摘要 |
 | `paperread find <query>` | 只读查找：key / 标题片段 / DOI / 作者 |
+| `paperread search <query> [--limit] [--source]` | 在线检索 arXiv/Crossref 候选（不写库，存 JSON） |
+| `paperread collect <search.json> [--indices] [--collection] [--run]` | 候选批量入库 Zotero，可选接着跑流水线 |
 | `paperread add <query> [--run]` | 单篇：按 key/标题/DOI 建目录（不扫全库），`--run` 直接跑流水线 |
 | `paperread ingest <arxiv\|doi\|url> [--collection] [--run]` | 写入 Zotero（Connector API，可选集合），再处理进 vault |
 | `paperread plan` | 目录规划预览；`--apply` 创建目录并写 state |
@@ -67,6 +69,18 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 6. **校验**：`paperread verify <key>`，全绿才交付。
 
 > 全库场景（首次建库/批量）：`paperread scan` → `paperread plan --apply` → `paperread status`。
+
+## 按主题找论文并整理
+
+用户说「帮我找 xxx 主题的论文，入库并整理」时：
+
+1. **检索**：`paperread search "<主题>" --limit 10`，把候选列表（标题/年份/arXiv ID/DOI）给用户确认；用户没指定就取前 3–5 篇。
+2. **入库**：`paperread collect <search.json> --indices 1,3-5 --collection "<集合>" --run`
+   （写入 Zotero → 建目录 → extract → translate → packet；翻译按当前 provider，默认 agent 不调外部 API）
+3. **写笔记**：对每篇 `paperread packet <key>`，按 `templates/note-template.md` 写 `note.md` + `summary.md`。
+4. **校验**：`paperread verify <key>`，全绿后告诉用户结果与目录位置。
+
+注意：`search`/`collect` 会访问 arXiv/Crossref 与 Zotero Connector；失败时如实报告，不要伪造入库结果。
 
 ## 笔记硬规则
 

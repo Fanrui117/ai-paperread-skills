@@ -211,7 +211,23 @@ paperread verify <key>              # 校验链接/锚点/图片/引文
 
 `add` 只处理这一篇，不会创建其它论文的目录；多篇同时新增时也只影响你指定的那篇。
 
-### 4.3 入库到 Zotero（可选，写库）
+### 4.3 搜索并入库（按主题找论文）
+
+不确定具体是哪几篇时，先在线检索，再挑选入库：
+
+```bash
+paperread search "point tracking 2024" --limit 10
+# 输出候选列表（arXiv / Crossref 去重），并保存到 <vault>/.paperread/searches/*.json
+
+paperread collect <上面保存的 json> --indices 1,3-5 --collection "MyPapers" --run
+# 把选中的候选写入 Zotero（指定集合），并立刻 extract → translate → packet
+```
+
+- `search` 只读、不写库；结果里的 arXiv ID / DOI 可直接再用于 `ingest`
+- `collect` 支持 `1,3-5` 区间；`--run` 时入库后自动建目录并跑流水线，之后让 agent 写笔记即可
+- 检索源可选：`--source arxiv | crossref | all`
+
+### 4.4 入库到 Zotero（单篇）
 
 已有论文可以直接从 Zotero 浏览器插件保存；如果想让 agent 代劳：
 
@@ -227,11 +243,17 @@ paperread ingest https://arxiv.org/abs/2401.12345 --run # 入库并立刻处理�
 
 > 需要 Zotero 正在运行，并勾选「允许其他应用与 Zotero 通信」。没有装 Zotero 或不想写库时，用浏览器插件入库后跑 `paperread find` + `paperread add` 即可。
 
-### 4.4 用 DSH agent 跑完整流程
+### 4.5 用 DSH agent 跑完整流程
 
 本仓库自带 skill：`.agents/skills/paper-read/SKILL.md`。在 DSH 中打开本项目（或其父目录含 `.agents/skills`）即可被识别，然后直接说：
 
 > 帮我把 Zotero 里 xxx 这篇论文做成 Obsidian 笔记
+
+也可以按主题批量找：
+
+> 帮我找 2024 年 point tracking 方向的论文，选前 5 篇入库到 MyPapers，并整理成笔记
+
+skill 会走「search → 候选确认 → collect --run → packet → 写笔记 → verify」。
 
 skill 会按「find/add → extract → translate(agent) → packet → 写笔记 → verify」执行；需要新论文入库时说「把 arXiv xxx 入库并整理」。
 
@@ -259,6 +281,8 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `审计` | `audit` | 审计：可用 / 缺 PDF / 孤儿 / 已忽略 |
 | `规划` | `plan [--apply]` | 对照 vault 输出目录规划；`--apply` 建目录并写 state |
 | `查找` | `find <query>` | 只读查找：key / 标题片段 / DOI / 作者 → 列出 key、集合、PDF 状态 |
+| `搜索` | `search <query> [--limit] [--source]` | 在线检索 arXiv/Crossref 候选论文（不写库，结果存 JSON） |
+| `批量入库` | `collect <search.json> [--indices] [--collection] [--run]` | 把候选批量写入 Zotero，可选接着跑流水线 |
 | `添加` | `add <query> [--run]` | 只处理单篇：按 key/标题/DOI 建目录，`--run` 直接跑流水线 |
 | `入库` | `ingest <arxiv\|doi\|url> [--collection] [--run]` | 通过 Zotero Connector 写入新论文（可选集合），再处理进 vault |
 | `抽取` | `extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + `blocks.json` |

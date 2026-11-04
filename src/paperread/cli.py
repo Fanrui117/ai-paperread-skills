@@ -713,6 +713,83 @@ def cmd_notesync(cfg, args) -> int:
     return 0
 
 
+def cmd_search(cfg, args) -> int:
+    """在线检索 arXiv / Crossref，输出候选列表（不写库、不建目录）。"""
+    import re
+    from datetime import datetime
+
+    from .search import search
+
+    cands = search(args.query, limit=args.limit, source=args.source)
+    if not cands:
+        print(f"[search] 没有找到「{args.query}」的候选论文")
+        return 1
+    out_dir = cfg.state_dir / "searches"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", args.query).strip("-")[:40] or "search"
+    out = out_dir / f"{datetime.now():%Y%m%d-%H%M%S}-{slug}.json"
+    save_json(out, {"query": args.query, "generated_at": datetime.now().isoformat(timespec="seconds"), "candidates": [c.to_dict() for c in cands]})
+    print(f"[search] {len(cands)} 条候选（已保存：{out}）")
+    for i, c in enumerate(cands, 1):
+        ident = c.arxiv_id or c.doi or ""
+        print(f"  {i:2d}. [{c.year or '----'}] {c.title[:78]}")
+        print(f"      {c.venue or c.source}  {ident}")
+    print("\n下一步：paperread collect <上面保存的 json> --indices 1,2,3 --collection <集合> [--run]")
+    return 0
+
+
+def cmd_collect(cfg, args) -> int:
+    """把 search 结果里的指定候选批量入库到 Zotero，并可接着处理进 vault。"""
+    from .ingest import ingest_metadata, resolve_one
+    from .search import Candidate
+
+    data = load_json(Path(args.file))
+    if not isinstance(data, dict) or not data.get("candidates"):
+        print(f"[collect] 文件里没有 candidates：{args.file}", file=sys.stderr)
+        return 1
+    cands = [Candidate.from_dict(c) for c in data["candidates"]]
+    if args.indices:
+        selected = []
+        for part in args.indices.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            if "-" in part:
+                a, b = part.split("-", 1)
+                selected.extend(range(int(a), int(b) + 1))
+            else:
+                selected.append(int(part))
+        picks = [cands[i - 1] for i in selected if 1 <= i <= len(cands)]
+    else:
+        picks = cands[: args.limit]
+    if not picks:
+        print("[collect] 没有选中任何候选", file=sys.stderr)
+        return 1
+    keys: list[str] = []
+    for c in picks:
+        try:
+            key, _ = ingest_metadata(cfg, c.to_meta(), collection=args.collection)
+            keys.append(key)
+            print(f"[collect] 已入库 {key}  {c.title[:70]}")
+        except Exception as exc:  # noqa: BLE001
+            print(f"[collect] 入库失败：{c.title[:60]} → {exc}", file=sys.stderr)
+    if not keys:
+        return 1
+    if args.run:
+        lib = load_library_auto(cfg)
+        for key in keys:
+            paper, _ = resolve_one(lib, key)
+            if paper is None:
+                print(f"[collect] {key} 暂未同步，稍后 `paperread add {key}`")
+                continue
+            plan = build_plan(lib, cfg, load_state(cfg), keys={key})
+            if plan.entries and plan.entries[0].status != "exists":
+                apply_plan(plan, cfg, load_state(cfg))
+            _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run)
+    print(f"[collect] 完成：入库 {len(keys)} 篇；接着可 `paperread packet <key>` 让 agent 写笔记")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="paperread", description="Zotero -> Obsidian 论文阅读流水线")
     parser.add_argument("--version", action="version", version=f"paperread {__version__}")
@@ -832,6 +909,22 @@ def build_parser() -> argparse.ArgumentParser:
     p_ns.add_argument("--all", action="store_true", help="处理所有已登记论文")
     p_ns.add_argument("--dry-run", action="store_true", help="只预览，不写文件")
     p_ns.set_defaults(func=cmd_notesync)
+
+    p_srch = sub.add_parser("search", aliases=["搜索"], help="在线检索 arXiv/Crossref 候选论文（不写库）")
+    p_srch.add_argument("query", help="关键词（标题/主题/作者）")
+    p_srch.add_argument("--limit", type=int, default=10, help="返回条数（默认 10）")
+    p_srch.add_argument("--source", choices=["arxiv", "crossref", "all"], default="all", help="检索源")
+    p_srch.set_defaults(func=cmd_search)
+
+    p_col = sub.add_parser("collect", aliases=["批量入库"], help="把 search 结果的候选批量入库（可选 --run 直接处理）")
+    p_col.add_argument("file", help="search 保存的 JSON 文件")
+    p_col.add_argument("--indices", help="要入库的序号，如 1,3-5（默认取前 --limit 条）")
+    p_col.add_argument("--limit", type=int, default=5, help="不指定 --indices 时取前 N 条")
+    p_col.add_argument("--collection", help="Zotero 集合名（写入后移动过去）")
+    p_col.add_argument("--run", action="store_true", help="入库后立刻 extract -> translate -> packet")
+    p_col.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
+    p_col.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
+    p_col.set_defaults(func=cmd_collect)
     return parser
 
 

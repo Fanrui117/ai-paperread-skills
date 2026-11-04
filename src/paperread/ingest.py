@@ -45,6 +45,11 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s or "").strip().lower()
 
 
+def _clean(s: str) -> str:
+    """只折叠空白，保留大小写（标题/摘要展示用）。"""
+    return re.sub(r"\s+", " ", s or "").strip()
+
+
 def search_papers(lib: ZoteroLibrary, query: str) -> list[Paper]:
     q = _norm(query)
     if not q:
@@ -106,10 +111,10 @@ def fetch_arxiv(arxiv_id: str) -> Metadata:
     entry = root.find("a:entry", ns)
     if entry is None:
         raise RuntimeError(f"arXiv 查不到 {arxiv_id}")
-    title = _norm(entry.findtext("a:title", default="", namespaces=ns))
+    title = _clean(entry.findtext("a:title", default="", namespaces=ns))
     authors = [n.text or "" for n in entry.findall("a:author/a:name", ns)]
     published = entry.findtext("a:published", default="", namespaces=ns)
-    abstract = _norm(entry.findtext("a:summary", default="", namespaces=ns))
+    abstract = _clean(entry.findtext("a:summary", default="", namespaces=ns))
     doi = entry.findtext("{http://arxiv.org/schemas/atom}doi", default="", namespaces=None) or ""
     return Metadata(
         title=title,
@@ -145,13 +150,13 @@ def fetch_crossref(doi: str) -> Metadata:
     abstract = re.sub(r"<[^>]+>", "", msg.get("abstract") or "")
     url = msg.get("URL") or f"https://doi.org/{doi}"
     return Metadata(
-        title=_norm(title),
+        title=_clean(title),
         authors=authors,
         year=year,
         publication=publication,
         doi=doi,
         url=url,
-        abstract=_norm(abstract),
+        abstract=_clean(abstract),
     )
 
 
@@ -186,7 +191,11 @@ def _download_pdf(meta: Metadata, client: ConnectorClient) -> bytes | None:
 
 def ingest_paper(cfg: Config, identifier: str, collection: str | None = None) -> tuple[str, Metadata]:
     """把论文写入 Zotero（connector API），返回新条目的 Zotero key。"""
-    meta = fetch_metadata(identifier)
+    return ingest_metadata(cfg, fetch_metadata(identifier), collection)
+
+
+def ingest_metadata(cfg: Config, meta: Metadata, collection: str | None = None) -> tuple[str, Metadata]:
+    """已知元数据时直接入库（供 search/collect 复用，避免重复抓元数据）。"""
     client = ConnectorClient(cfg.local_api.replace("/api", ""))
     if not client.ping():
         raise ConnectorError("Zotero 未运行，或未开启「允许其他应用与 Zotero 通信」")
