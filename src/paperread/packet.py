@@ -106,7 +106,7 @@ def build_packet(cfg: Config, key: str) -> Path:
     lines.append("- 每个论断/数字/结论附原文引用与 `[↓原文](full.md#^pN)` 相对链接。")
     lines.append("- 图片用 `![](assets/figN_xxx.png)` 相对路径，图注斜体写「该看什么」。")
     lines.append("- 公式用 Markdown 数学语法：行内 `$...$`、行间 `$$...$$`（不要用图片或 `_x_` 模拟上下标）。")
-    lines.append("- 跨论文链接用 `[PIPs](../PIPs-8VWR6W8W/note.md)` 形式（相对路径）。")
+    lines.append("- 跨论文链接用 `[PaperB](../PaperB-YYYYYYYY/note.md)` 形式（相对路径）。")
     lines.append("- 不编造数字；原文没有的标注「原文未明确」。")
     lines.append("")
 

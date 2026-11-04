@@ -292,7 +292,6 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `翻译` | `translate <key> [--dry-run] [--provider ...] [--main-only]` | 生成中英对照 `full.md` |
 | `翻译` | `translate <key> --emit-tasks` / `--import-json <f>` | agent 翻译工作流（导出块 → 逐块译 → 导入） |
 | `写作包` | `packet <key>` | 笔记写作包（大纲 / 锚点 / 图清单 / 摘要） |
-| `公式` | `formulas <key> --emit-tasks \| --import-json <f>` | 公式图 → `$$...$$` LaTeX（保留锚点） |
 | `行内公式` | `mathfix <key> --emit-tasks \| --import-json <f>` | 中文译文里的行内数学 → `$...$` |
 | `表格` | `tables <key> [--import-json <f>]` | MinerU HTML 表格 → Markdown 表格（表格内公式可渲染） |
 | `修源` | `fixsrc <key> --import-json <f>` | 修复被 PDF 抽取破坏的源段落（`{id: {src, zh}}`，缓存自动重映射） |
