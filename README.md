@@ -1,5 +1,7 @@
 # PaperRead
 
+> 仓库名：**ai-paperread-skills**（Zotero → Obsidian 论文阅读流水线 + DSH skill）
+
 **Zotero → Obsidian 论文阅读流水线**：只读扫描 Zotero 库 → 按集合结构镜像目录 → 抽取 PDF（图 / 公式 / 表格）→ 生成中英对照全文（段级交替 + `^pN` 锚点）→ agent 写精读笔记（引用可回链原文）→ 自动校验。
 
 - 形态：Python CLI + DSH skill（也可被其他 agent/脚本调用）
@@ -174,7 +176,24 @@ items = []                   # Zotero item key（8 位）
 
 > 没有翻译需求时：`paperread extract` + `paperread translate <key> --dry-run` 只生成英文 + 锚点，笔记仍可写。
 
-### 4.1 用 DSH agent 跑完整流程
+### 4.1 离线示例（不需要 Zotero / API key）
+
+仓库自带一个合成论文示例，用 8 个样例块演示完整产物格式：
+
+```bash
+.venv/bin/python examples/demo/run_demo.py              # 输出到临时目录
+.venv/bin/python examples/demo/run_demo.py ./demo-vault  # 输出到指定目录
+```
+
+它会生成一个 demo vault（`MyPapers/DemoPaper-DEMO0001/`），包含：
+
+- `full.md`：中英对照 + `^pN` 锚点 + `$$...$$` 公式 + Markdown 表格
+- `note.md`：精读笔记（引用带 `[↓原文](full.md#^pN)` 回链）
+- `assets/fig1_demo.png`：占位图
+
+最后自动跑 `verify` 并打印校验结果。可以直接用 Obsidian 打开生成的目录查看。
+
+### 4.2 用 DSH agent 跑完整流程
 
 本仓库自带 skill：`.agents/skills/paper-read/SKILL.md`。在 DSH 中打开本项目（或其父目录含 `.agents/skills`）即可被识别，然后直接说：
 
@@ -196,26 +215,37 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 
 ## 5. 命令参考
 
-| 命令 | 说明 |
-|---|---|
-| `init` | 生成 `config/settings.toml` 与 vault 目录 |
-| `doctor` | 环境自检（配置 / Zotero / vault / key / 依赖） |
-| `scan` | 只读扫描 Zotero → `vault/.paperread/library.json` |
-| `audit` | 审计：可用 / 缺 PDF / 孤儿 / 已忽略 |
-| `plan [--apply]` | 对照 vault 输出目录规划；`--apply` 建目录并写 state |
-| `extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + `blocks.json` |
-| `translate <key> [--dry-run] [--provider ...] [--main-only]` | 生成中英对照 `full.md` |
-| `translate <key> --emit-tasks` / `--import-json <f>` | agent 翻译工作流（导出块 → 逐块译 → 导入） |
-| `packet <key>` | 笔记写作包（大纲 / 锚点 / 图清单 / 摘要） |
-| `formulas <key> --emit-tasks \| --import-json <f>` | 公式图 → `$$...$$` LaTeX（保留锚点） |
-| `mathfix <key> --emit-tasks \| --import-json <f>` | 中文译文里的行内数学 → `$...$` |
-| `tables <key> [--import-json <f>]` | MinerU HTML 表格 → Markdown 表格（表格内公式可渲染） |
-| `fixsrc <key> --import-json <f>` | 修复被 PDF 抽取破坏的源段落（`{id: {src, zh}}`，缓存自动重映射） |
-| `page <key> <n>` | 渲染 PDF 第 n 页为 PNG（agent 核对公式/表格用） |
-| `verify <key> \| --all` | 校验链接 / 锚点 / 图片 / frontmatter / 引文 |
-| `run <key> \| --collection X` | extract → translate → packet 一条龙 |
-| `index` | 生成 vault 根目录 `_索引.md` |
-| `status` | 覆盖率（F=全文 N=笔记 S=速览） |
+每个子命令都有**中文别名**，中英文等价（如 `paperread 扫描` = `paperread scan`）。
+
+| 中文别名 | 英文命令 | 说明 |
+|---|---|---|
+| `初始化` | `init` | 生成 `config/settings.toml` 与 vault 目录 |
+| `自检` | `doctor` | 环境自检（配置 / Zotero / vault / key / 依赖） |
+| `扫描` | `scan` | 只读扫描 Zotero → `vault/.paperread/library.json` |
+| `审计` | `audit` | 审计：可用 / 缺 PDF / 孤儿 / 已忽略 |
+| `规划` | `plan [--apply]` | 对照 vault 输出目录规划；`--apply` 建目录并写 state |
+| `抽取` | `extract <key> [--force] [--backend mineru]` | PDF → `src.md` + `assets/` + `blocks.json` |
+| `翻译` | `translate <key> [--dry-run] [--provider ...] [--main-only]` | 生成中英对照 `full.md` |
+| `翻译` | `translate <key> --emit-tasks` / `--import-json <f>` | agent 翻译工作流（导出块 → 逐块译 → 导入） |
+| `写作包` | `packet <key>` | 笔记写作包（大纲 / 锚点 / 图清单 / 摘要） |
+| `公式` | `formulas <key> --emit-tasks \| --import-json <f>` | 公式图 → `$$...$$` LaTeX（保留锚点） |
+| `行内公式` | `mathfix <key> --emit-tasks \| --import-json <f>` | 中文译文里的行内数学 → `$...$` |
+| `表格` | `tables <key> [--import-json <f>]` | MinerU HTML 表格 → Markdown 表格（表格内公式可渲染） |
+| `修源` | `fixsrc <key> --import-json <f>` | 修复被 PDF 抽取破坏的源段落（`{id: {src, zh}}`，缓存自动重映射） |
+| `页面` | `page <key> <n>` | 渲染 PDF 第 n 页为 PNG（agent 核对公式/表格用） |
+| `校验` | `verify <key> \| --all` | 校验链接 / 锚点 / 图片 / frontmatter / 引文 |
+| `一键运行` | `run <key> \| --collection X` | extract → translate → packet 一条龙 |
+| `索引` | `index` | 生成 vault 根目录 `_索引.md` |
+| `状态` | `status` | 覆盖率（F=全文 N=笔记 S=速览） |
+
+中文别名的典型用法：
+
+```bash
+paperread 自检                       # = paperread doctor
+paperread 扫描 && paperread 规划 --apply
+paperread 抽取 <key> && paperread 翻译 <key> --provider baidu
+paperread 校验 --all
+```
 
 ---
 
