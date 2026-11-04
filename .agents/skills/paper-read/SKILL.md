@@ -49,6 +49,7 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 | `paperread tables <key> --import-json <f>` | 手工/agent 提供 `{block_id: 表格文本}` 并重渲染 |
 | `paperread fixsrc <key> --import-json <f>` | 修正被 PDF 抽取破坏的源段落：`{block_id: {src, zh}}`，自动重映射译文缓存 |
 | `paperread notesync <key> \| --all [--dry-run]` | 把笔记里已升级为 LaTeX 的公式图替换成 `$$...$$`（其它图保留） |
+| `paperread imggrid <key> --emit-tasks \| --import-json <f>` | 同图多裁片排版：导出图片组+页图，agent 看原图决定并排/竖排/自定义 |
 | `paperread page <key> <page>` | 把 PDF 某页渲染成 PNG（`work/<key>/pages/pNNN.png`），供 agent 核对公式/表格 |
 | `paperread verify <key> \| --all` | 校验链接/锚点/图片/frontmatter/引文 |
 | `paperread audit` | 审计库：可用 / 缺 PDF / 孤儿 / 已忽略 |
@@ -98,6 +99,18 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
   - 候选包括 `eq*.png`，也包括**短宽条图**（高≤200、宽高比≥2.2）——抽取器有时把公式裁成 `fig*.png`，别漏。
   - **同一张图里的多行公式组**（如式 (3)(4) 在一张图）用 `\begin{aligned}...\end{aligned}` 保留为一个 `$$` 块，不能因为行多就跳过。
 - 中文译文里的行内数学片段：`paperread mathfix <key> --emit-tasks` → agent 把片段包成 `$...$` → `--import-json` 更新译文并重渲染。
+
+## 图片排版（复杂组合图）
+
+默认渲染会把「同尺寸的同一图裁片」并排（每行 3 张）；组合图、带 (a)(b)(c) 标签条的图不会被自动并排。
+需要更精细的版式时：
+
+1. `paperread imggrid <key> --emit-tasks` → 得到 `imggrid_tasks.json`（每组：`group_id`、`block_ids`、`images`、`page`、`page_png`、`caption`）。
+2. 用 read_image 看 `page_png` 原页，判断每组的正确版式，写：
+   ```json
+   {"g1": {"mode": "grid"}, "g2": {"mode": "stack"}, "g3": {"mode": "raw", "text": "<自定义 HTML/Markdown>"}}
+   ```
+3. `paperread imggrid <key> --import-json <布局.json>` → 应用并重渲染 `translated.md`。
 
 ## 常见故障
 

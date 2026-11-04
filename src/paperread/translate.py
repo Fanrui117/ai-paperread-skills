@@ -406,6 +406,33 @@ def _img_base(name: str) -> str:
     return stem
 
 
+def _img_size(path: Path | None) -> tuple[int, int] | None:
+    if path is None or not path.is_file():
+        return None
+    try:
+        from PIL import Image
+
+        return Image.open(path).size
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _should_grid(images: list[str], paper_dir: Path | None) -> bool:
+    """只有「同尺寸、非细长条」的裁片才并排，避免把组合图/标签条压成等宽格子。"""
+    if paper_dir is None or not (2 <= len(images) <= 6):
+        return False
+    sizes = [_img_size(paper_dir / "assets" / _img_name(md)) for md in images]
+    if any(s is None for s in sizes):
+        return False
+    ratios = [w / max(h, 1) for w, h in sizes]  # type: ignore[misc]
+    if max(ratios) / min(ratios) > 1.35:
+        return False
+    for w, h in sizes:  # type: ignore[misc]
+        if h < 40 or w / max(h, 1) > 4:  # 标签条/超宽条：不并排
+            return False
+    return True
+
+
 def _render_image_grid(images: list[str], per_row: int = 3) -> list[str]:
     """把多张图渲染成 Markdown 表格网格（Obsidian 里并排显示）。"""
     rows = [images[i : i + per_row] for i in range(0, len(images), per_row)]
@@ -438,6 +465,8 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
     lines.append(f"# {title}")
     lines.append("")
 
+    state = load_state(cfg).get("papers", {}).get(key, {})
+    paper_dir = cfg.library_root / state["dir"] if state.get("dir") else None
     seen_h1 = False
     i = 0
     while i < len(blocks):
@@ -457,6 +486,12 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
             lines.append("")
             i += 1
             continue
+        if kind == "figure":
+            # agent 自定义排版后的整块图片（markdown 表格 / HTML）
+            lines.append(text)
+            lines.append("")
+            i += 1
+            continue
         if kind == "image":
             # 收集连续图片块：同一张图的多个裁片并排显示（Markdown 表格网格）
             run = [b]
@@ -473,10 +508,10 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
                 else:
                     groups.append((base, [md_img]))
             for _, imgs in groups:
-                if len(imgs) > 1:
+                if len(imgs) > 1 and cfg.image_grid and _should_grid(imgs, paper_dir):
                     lines.extend(_render_image_grid(imgs))
                 else:
-                    lines.append(imgs[0])
+                    lines.extend(imgs)
                 lines.append("")
             i = j
             continue

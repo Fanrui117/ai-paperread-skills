@@ -296,6 +296,7 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `表格` | `tables <key> [--import-json <f>]` | MinerU HTML 表格 → Markdown 表格（表格内公式可渲染） |
 | `修源` | `fixsrc <key> --import-json <f>` | 修复被 PDF 抽取破坏的源段落（`{id: {src, zh}}`，缓存自动重映射） |
 | `笔记同步` | `notesync <key> \| --all [--dry-run]` | 把笔记里已升级为 LaTeX 的公式图替换成 `$$...$$`（其它图保留） |
+| `图片排版` | `imggrid <key> --emit-tasks \| --import-json <f>` | 同图多裁片排版：导出图片组+页图，agent 决定并排/竖排/自定义后导入 |
 | `页面` | `page <key> <n>` | 渲染 PDF 第 n 页为 PNG（agent 核对公式/表格用） |
 | `校验` | `verify <key> \| --all` | 校验链接 / 锚点 / 图片 / frontmatter / 引文 |
 | `一键运行` | `run <key> \| --collection X` | extract → translate → packet 一条龙 |
@@ -340,6 +341,7 @@ paperread 校验 --all
   - 原文回链：`[↓原文](translated.md#^p7)`
   - 图片：`![](assets/fig1_xxx.png)`（Obsidian 子目录里 `![[assets/x]]` 是 vault 根相对，会找不到）
   - 跨论文：`[PaperB](../PaperB-YYYYYYYY/note.md)`
+- 图片排版：同一张图的多张裁片，**尺寸相近时自动并排**（每行 3 张，Markdown 表格）；组合图、标签条（如 (a)(b)(c) 条）不并排，避免压扁。复杂组合图用 `paperread imggrid <key>` 导出页图与图片组，让 agent 看原图后决定 `grid` / `stack` / `raw`（自定义 HTML 或 Markdown）。
 - 公式：**行内 `$...$`、行间 `$$...$$`**；不要用图片或 `_x_` 模拟上下标。
 - `verify` 会检查：链接目标存在、锚点存在、图片存在、frontmatter `paper_key` 一致、引文能在全文找到。
 

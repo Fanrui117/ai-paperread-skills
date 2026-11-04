@@ -59,6 +59,7 @@ class Config:
     mineru_api_key: str = ""
     mineru_api_base: str = "https://mineru.net/api/v4"
     extract_backend: str = "pymupdf"
+    image_grid: bool = True
     source_path: Path | None = None
 
     # ---- 派生路径 ----
@@ -157,6 +158,7 @@ def load_config(explicit: str | Path | None = None) -> Config:
         mineru_api_key=str((raw.get("mineru", {}) or {}).get("api_key", "")),
         mineru_api_base=str((raw.get("mineru", {}) or {}).get("api_base", "https://mineru.net/api/v4")),
         extract_backend=str((raw.get("extract", {}) or {}).get("backend", "pymupdf")),
+        image_grid=bool((raw.get("render", {}) or {}).get("image_grid", True)),
         source_path=path,
     )
     return cfg

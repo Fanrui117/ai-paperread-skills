@@ -815,6 +815,22 @@ def cmd_collect(cfg, args) -> int:
     return 0
 
 
+def cmd_imggrid(cfg, args) -> int:
+    """图片排版：把同图多裁片交给 agent 看页图后决定并排/竖排/自定义。"""
+    from .imggrid import apply_layout, emit_tasks
+
+    if args.emit_tasks:
+        out = emit_tasks(cfg, args.key)
+        print(f"[imggrid] 待排版图片组任务：{out}")
+        return 0
+    if args.import_json:
+        n, fulltext = apply_layout(cfg, args.key, Path(args.import_json))
+        print(f"[imggrid] 应用 {n} 组排版 → {fulltext}")
+        return 0
+    print("[error] 需要 --emit-tasks 或 --import-json", file=sys.stderr)
+    return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="paperread", description="Zotero -> Obsidian 论文阅读流水线")
     parser.add_argument("--version", action="version", version=f"paperread {__version__}")
@@ -937,6 +953,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_ns.add_argument("--all", action="store_true", help="处理所有已登记论文")
     p_ns.add_argument("--dry-run", action="store_true", help="只预览，不写文件")
     p_ns.set_defaults(func=cmd_notesync)
+
+    p_ig = sub.add_parser("imggrid", aliases=["图片排版"], help="同图多裁片的并排/竖排/自定义排版（agent 看页图决定）")
+    p_ig.add_argument("key", help="Zotero item key（8 位）")
+    p_ig.add_argument("--emit-tasks", action="store_true", help="导出待排版图片组任务（含页图路径）")
+    p_ig.add_argument("--import-json", default=None, help='导入布局 {group_id: {"mode": "grid|stack|raw", "text": "..."}}')
+    p_ig.set_defaults(func=cmd_imggrid)
 
     p_srch = sub.add_parser("search", aliases=["搜索"], help="在线检索 arXiv/Crossref 候选论文（不写库）")
     p_srch.add_argument("query", help="关键词（标题/主题/作者）")

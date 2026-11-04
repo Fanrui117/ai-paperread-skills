@@ -69,6 +69,10 @@ api_base = "https://mineru.net/api/v4"
 # 注意：换后端会改变段落锚点，已有笔记的链接会失效，建议只对未处理的论文使用
 backend = "pymupdf"
 
+[render]
+# 同一张图的多张裁片：尺寸相近时自动并排（每行 3 张）；组合图/标签条不并排
+image_grid = true
+
 # 人工覆写的论文简称（Zotero item key 或完整标题 -> 简称）
 [names]
 # "Particle Video Revisited: Tracking Through Occlusions Using Point Trajectories" = "PIPs"
