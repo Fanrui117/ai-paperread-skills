@@ -21,6 +21,21 @@ def build_packet(cfg: Config, key: str) -> Path:
 
     lib = load_json(cfg.library_json, {}) or {}
     paper = next((p for p in lib.get("papers", []) if p.get("key") == key), {})
+    if not paper.get("title") and fulltext.is_file() and fulltext.name == "full.md":
+        # library 快照可能还没刷新：退回 full.md frontmatter 的元数据
+        try:
+            import frontmatter
+
+            fm = frontmatter.load(fulltext).metadata
+            paper = {
+                "title": fm.get("title", ""),
+                "creators": [c for c in str(fm.get("creators", "")).split("; ") if c],
+                "date": str(fm.get("year", "")),
+                "publication": fm.get("publication", ""),
+                "url": fm.get("url", ""),
+            }
+        except Exception:  # noqa: BLE001
+            pass
 
     lines: list[str] = []
     lines.append(f"# {short} 写作包")

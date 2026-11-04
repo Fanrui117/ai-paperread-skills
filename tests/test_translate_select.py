@@ -41,3 +41,33 @@ def test_select_items_skips_short_and_symbol_heavy():
     ids = [bid for bid, _ in _select_items(blocks)]
     # 标题要翻译（渲染成「## 1 Introduction（引言）」），短段/公式段跳过
     assert ids == ["p1", "p4"]
+
+
+def test_select_items_roman_numeral_heading():
+    blocks = [
+        {"id": "p1", "kind": "heading", "text": "# PAPER TITLE"},
+        {"id": "p2", "kind": "para", "text": "Authors and affiliations."},
+        {"id": "p3", "kind": "heading", "text": "## I. INTRODUCTION"},
+        {"id": "p4", "kind": "para", "text": "Intro paragraph long enough to be translated."},
+        {"id": "p5", "kind": "heading", "text": "## II. RELATED WORK"},
+        {"id": "p6", "kind": "para", "text": "Related work paragraph long enough to translate."},
+    ]
+    ids = [bid for bid, _ in _select_items(blocks)]
+    assert "p2" not in ids          # 封面跳过
+    assert "p3" in ids and "p4" in ids
+    assert "p5" in ids and "p6" in ids
+
+
+def test_select_items_plain_text_references():
+    blocks = [
+        {"id": "p1", "kind": "heading", "text": "## 1 Introduction"},
+        {"id": "p2", "kind": "para", "text": "Intro paragraph long enough to be translated."},
+        {"id": "p3", "kind": "para", "text": "REFERENCES"},
+        {"id": "p4", "kind": "para", "text": "[1] Some reference entry with authors and title."},
+        {"id": "p5", "kind": "heading", "text": "## A Appendix"},
+        {"id": "p6", "kind": "para", "text": "Appendix paragraph that should be translated too."},
+    ]
+    ids = [bid for bid, _ in _select_items(blocks)]
+    assert "p2" in ids
+    assert "p3" not in ids and "p4" not in ids   # 纯文本 REFERENCES 也当参考文献起点
+    assert "p6" in ids

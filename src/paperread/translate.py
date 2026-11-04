@@ -187,6 +187,12 @@ def _call_deepseek(cfg: Config, batch: list[tuple[str, str]], glossary: list[tup
     raise RuntimeError(f"翻译接口多次失败：{last_error}")
 
 
+FRONT_HEAD_RE = re.compile(
+    r"^(abstract\b|\d{1,2}(?:\.\d+)*[.)]?\s+|[ivxlc]{1,4}[.)]\s*)", re.I
+)
+REFS_RE = re.compile(r"^(references|bibliography)\b", re.I)
+
+
 def _select_items(blocks: list[dict], main_only: bool = False) -> list[tuple[str, str]]:
     """挑出值得翻译的块：跳过封面/作者/参考文献/公式碎片，省 token 且少出错。"""
     items: list[tuple[str, str]] = []
@@ -197,9 +203,9 @@ def _select_items(blocks: list[dict], main_only: bool = False) -> list[tuple[str
         text = (b.get("text") or "").strip()
         if kind == "heading":
             plain = text.lstrip("# ").replace("**", "").strip().lower()
-            if plain.startswith("abstract") or plain.startswith("1 ") or plain.startswith("1."):
+            if FRONT_HEAD_RE.match(plain):
                 in_front = False
-            if plain == "references" or plain.startswith("references"):
+            if REFS_RE.match(plain):
                 in_refs = True
                 if main_only:
                     break
@@ -214,6 +220,12 @@ def _select_items(blocks: list[dict], main_only: bool = False) -> list[tuple[str
             continue
         if in_front or in_refs:
             continue
+        if kind == "para":
+            # 有些论文的 "REFERENCES" 是普通段落而不是标题
+            head = text.lstrip("*# ").replace("**", "").strip()
+            if REFS_RE.match(head) and len(head) < 80:
+                in_refs = True
+                continue
         if kind not in ("para", "caption"):
             continue
         if len(text) < 20:
