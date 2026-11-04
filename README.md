@@ -36,8 +36,8 @@
 ## 2. 安装
 
 ```bash
-git clone <this-repo> PaperRead_tools
-cd PaperRead_tools
+git clone <this-repo> ai-paperread-skills
+cd ai-paperread-skills
 
 # 方式 A：uv（推荐）
 uv sync
