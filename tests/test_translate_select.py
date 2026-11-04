@@ -58,6 +58,20 @@ def test_select_items_roman_numeral_heading():
     assert "p5" in ids and "p6" in ids
 
 
+def test_select_items_abstract_paragraph():
+    blocks = [
+        {"id": "p1", "kind": "heading", "text": "# A Paper Title"},
+        {"id": "p2", "kind": "para", "text": "Author names and affiliations here."},
+        {"id": "p3", "kind": "para", "text": "Abstract We propose a new method for tracking points in video."},
+        {"id": "p4", "kind": "heading", "text": "## 1 Introduction"},
+        {"id": "p5", "kind": "para", "text": "Intro paragraph long enough to be translated."},
+    ]
+    ids = [bid for bid, _ in _select_items(blocks)]
+    assert "p2" not in ids   # 封面跳过
+    assert "p3" in ids       # 无标题的 Abstract 段落要翻译
+    assert "p4" in ids and "p5" in ids
+
+
 def test_select_items_plain_text_references():
     blocks = [
         {"id": "p1", "kind": "heading", "text": "## 1 Introduction"},

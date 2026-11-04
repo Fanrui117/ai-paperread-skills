@@ -55,6 +55,16 @@ def _scan_stats(lib: ZoteroLibrary) -> dict:
     }
 
 
+def _refresh_library_snapshot(cfg) -> None:
+    """把当前 Zotero 库写回 library.json（ingest/collect 新增条目后调用）。"""
+    lib = load_library_auto(cfg)
+    cfg.ensure_dirs()
+    payload = lib.to_dict()
+    payload["scanned_at"] = datetime.now().isoformat(timespec="seconds")
+    payload["stats"] = _scan_stats(lib)
+    save_json(cfg.library_json, payload)
+
+
 def cmd_scan(cfg, args) -> int:
     lib = load_library_auto(cfg)
     cfg.ensure_dirs()
@@ -681,6 +691,7 @@ def cmd_ingest(cfg, args) -> int:
         print(f"[ingest] 失败：{exc}", file=sys.stderr)
         return 1
     print(f"[ingest] 已写入 Zotero: {key}  {meta.title}")
+    _refresh_library_snapshot(cfg)
     if args.no_process:
         return 0
     lib = load_library_auto(cfg)
@@ -796,6 +807,7 @@ def cmd_collect(cfg, args) -> int:
             if plan.entries and plan.entries[0].status != "exists":
                 apply_plan(plan, cfg, load_state(cfg))
             _pipeline_one(cfg, key, backend=args.backend, dry_run=args.dry_run, formulas=args.formulas)
+    _refresh_library_snapshot(cfg)
     print(f"[collect] 完成：入库 {len(keys)} 篇；接着可 `paperread packet <key>` 让 agent 写笔记")
     return 0
 

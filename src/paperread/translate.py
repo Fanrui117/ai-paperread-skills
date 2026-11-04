@@ -219,6 +219,18 @@ def _select_items(blocks: list[dict], main_only: bool = False) -> list[tuple[str
             items.append((b["id"], text))
             continue
         if in_front or in_refs:
+            # 有些论文的 Abstract 是普通段落（没有标题）：遇到 "Abstract..." 就结束封面区
+            if in_front and kind == "para":
+                head0 = text.lstrip("*# ").replace("**", "").strip()
+                if re.match(r"^abstract\b", head0, re.I):
+                    in_front = False
+                    head = head0
+                    if REFS_RE.match(head) and len(head) < 80:
+                        in_refs = True
+                        continue
+                    if len(text) >= 20 and sum(ch.isalpha() for ch in text) / max(len(text), 1) >= 0.5:
+                        items.append((b["id"], text))
+                    continue
             continue
         if kind == "para":
             # 有些论文的 "REFERENCES" 是普通段落而不是标题
