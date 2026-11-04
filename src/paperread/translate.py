@@ -389,7 +389,13 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
         v = str(meta.get(k, "") or "").replace('"', "'")
         if v:
             lines.append(f'{k}: "{v}"')
-    lines.append(f'translation: "{cfg.translate_provider}:{cfg.translate_model if cfg.translate_provider == "deepseek" else "baidu"}"' if zh else 'translation: "none"')
+    if cfg.translate_provider == "deepseek":
+        trans_mode = f"deepseek:{cfg.translate_model}"
+    elif cfg.translate_provider == "baidu":
+        trans_mode = "baidu"
+    else:
+        trans_mode = "agent"
+    lines.append(f'translation: "{trans_mode}"' if zh else 'translation: "none"')
     lines.append(f'translated_at: "{datetime.now().isoformat(timespec="seconds")}"')
     lines.append("---")
     lines.append("")
