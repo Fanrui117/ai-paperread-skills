@@ -597,6 +597,10 @@ def _pipeline_one(cfg, key: str, *, backend=None, dry_run: bool = False, force: 
         print(f"  extract: {res.pages} 页, 图 {res.figures}, 公式 {res.equations}, assets {len(res.assets)}")
     else:
         print("  extract: 跳过（已存在源文件，--force 可重抽）")
+    if cfg.translate_provider == "agent" and not dry_run:
+        # agent 路线不调用外部 API：先渲染英文全文，翻译由 agent 用 emit-tasks/import-json 完成
+        print("  translate: provider=agent，先渲染英文+锚点（之后用 --emit-tasks 交给 agent 翻译）")
+        dry_run = True
     tr = translate_paper(cfg, key, dry_run=dry_run)
     if tr.mode == "dry-run":
         print("  translate: dry-run（英文+锚点）")
