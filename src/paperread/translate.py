@@ -406,6 +406,33 @@ def _img_base(name: str) -> str:
     return stem
 
 
+CELL_CLEAN_PATTERNS = [
+    (re.compile(r"_\s*([.,;:×∼↑↓\-–/])\s*_"), r"\1"),
+    (re.compile(r"_\s*<sup>\s*_?(.*?)_?\s*</sup>\s*_"), r"<sup>\1</sup>"),
+    (re.compile(r"(\d)\s*\.\s*(\d)"), r"\1.\2"),
+    (re.compile(r"(\d)\s*_\s*\.\s*_?\s*(\d)"), r"\1.\2"),
+    (re.compile(r"_\s*([\u0370-\u03ffA-Za-z0-9])\s*_"), r"\1"),
+]
+
+
+def _clean_cell(text: str) -> str:
+    for pat, repl in CELL_CLEAN_PATTERNS:
+        text = pat.sub(repl, text)
+    return text.strip()
+
+
+def _clean_table_md(text: str) -> str:
+    """清理表格单元格里的抽取噪声：`33_._0` -> `33.0`、`6_×_256r` -> `6×256r`。"""
+    lines = []
+    for line in text.splitlines():
+        if line.strip().startswith("|"):
+            cells = line.split("|")
+            cells = [(" " + _clean_cell(c) + " ") if c.strip() else c for c in cells]
+            line = "|".join(cells)
+        lines.append(line)
+    return "\n".join(lines)
+
+
 def _img_size(path: Path | None) -> tuple[int, int] | None:
     if path is None or not path.is_file():
         return None
@@ -516,7 +543,7 @@ def render_fulltext(cfg: Config, key: str, short: str, blocks: list[dict], zh: d
             i = j
             continue
         if kind == "table":
-            lines.append(_to_md_image(text))
+            lines.append(_clean_table_md(_to_md_image(text)))
             if bid:
                 lines.append(f"^{bid}")
             lines.append("")
