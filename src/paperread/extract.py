@@ -156,7 +156,7 @@ def _process_images(md: str, src_dir: Path, assets: Path, short: str) -> tuple[s
             if dst.exists():
                 dst.unlink()
             shutil.move(str(src), str(dst))
-        return f"![[assets/{name}]]"
+        return f"![](assets/{name})"
 
     new_md = IMAGE_REF_RE.sub(repl, md)
     return new_md, fig_count, eq_count
@@ -168,7 +168,7 @@ def _classify_block(block: str) -> str:
         return "empty"
     if s.startswith("#"):
         return "heading"
-    if s.startswith("![[assets/"):
+    if s.startswith(("![[assets/", "![](assets/")):
         return "image"
     if s.startswith("$$") or (s.startswith("$") and s.count("$") >= 2 and len(s) < 400):
         return "equation"
@@ -262,7 +262,7 @@ def _crop_vector_figures(doc, md: str, assets: Path, short: str) -> tuple[str, i
             if not prev_is_image:
                 name = _crop_figure_above(doc, page, line.strip(), assets, int(cap.group(1)), short)
                 if name:
-                    out.append(f"![[assets/{name}]]")
+                    out.append(f"![](assets/{name})")
                     out.append("")
                     added += 1
         out.append(line)
@@ -307,7 +307,7 @@ def _harvest_page_figures(doc, md: str, assets: Path) -> tuple[str, int]:
         if m:
             page = int(m.group(1))
             page_has_image.setdefault(page, False)
-        elif line.strip().startswith(("![[assets/fig", "![[assets/thumb", "![[assets/tab")):
+        elif line.strip().startswith(("![](assets/fig", "![[assets/fig", "![](assets/thumb", "![[assets/thumb", "![](assets/tab", "![[assets/tab")):
             page_has_image[page] = True
 
     added = 0
@@ -352,7 +352,7 @@ def _harvest_page_figures(doc, md: str, assets: Path) -> tuple[str, int]:
             name = _dedupe_name(assets, f"fig_p{pno}_{k}.png")
             pg.get_pixmap(clip=clip, dpi=150).save(str(assets / name))
             out.append("")
-            out.append(f"![[assets/{name}]]")
+            out.append(f"![](assets/{name})")
             out.append("")
             added += 1
     return "\n".join(out), added
@@ -413,7 +413,7 @@ def _extract_mineru(cfg: Config, paper, assets: Path, short: str) -> tuple[str, 
         base = raw.split("/")[-1]
         new_name = order.get(base)
         if new_name and (assets / new_name).is_file():
-            return f"![[assets/{new_name}]]"
+            return f"![](assets/{new_name})"
         return ""
 
     md = IMAGE_REF_RE.sub(repl, res.markdown)
