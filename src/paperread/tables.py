@@ -17,6 +17,62 @@ from .translate import load_blocks, pick_cached_provider, translate_paper
 SPACE_RE = re.compile(r"\s+")
 
 
+def _table_lines(text: str) -> list[str]:
+    return [ln for ln in text.splitlines() if ln.strip().startswith("|")]
+
+
+def table_looks_broken(text: str) -> bool:
+    """检测被拍平的表头：短碎片（"Fi"/"rst"）或多行表头列数不一致。"""
+    lines = _table_lines(text)
+    if len(lines) < 2:
+        return False
+    header = [c.strip(" *") for c in lines[0].strip("|").split("|")]
+    frags = [c for c in header if re.fullmatch(r"[A-Za-z]{1,3}", c)]
+    counts = {len(ln.strip("|").split("|")) for ln in lines[1:]}
+    return len(frags) >= 2 or len(counts) > 1
+
+
+def emit_table_tasks(cfg: Config, key: str) -> Path:
+    """导出疑似「表头被拍平」的表格任务（含页图），供 agent 按原页重写。"""
+    data = load_blocks(cfg, key)
+    blocks = data["blocks"]
+    items = []
+    for idx, b in enumerate(blocks):
+        if b.get("kind") != "table" or not table_looks_broken(b.get("text", "")):
+            continue
+        caption = ""
+        for nb in blocks[idx + 1 : idx + 3]:
+            if nb.get("kind") == "caption":
+                caption = nb.get("text", "")
+                break
+        page = int(b.get("page", 0) or 0)
+        items.append(
+            {
+                "block_id": b.get("id"),
+                "page": page,
+                "caption": caption,
+                "header": _table_lines(b.get("text", ""))[0],
+                "table": b.get("text", ""),
+                "page_png": _page_png(cfg, key, page) if page else "",
+            }
+        )
+    out = cfg.state_dir / "work" / key / "table_fix_tasks.json"
+    save_json(out, {"key": key, "short": data.get("short", key), "items": items})
+    return out
+
+
+def _page_png(cfg: Config, key: str, page: int) -> str:
+    import fitz
+
+    doc = fitz.open(_pdf_path(cfg, key))
+    out_dir = cfg.state_dir / "work" / key / "pages"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"p{page:03d}.png"
+    if not out.is_file():
+        doc[page - 1].get_pixmap(dpi=150).save(out)
+    return str(out)
+
+
 def _clean_math(m: re.Match) -> str:
     s = m.group(0)
     inner = s[1:-1]

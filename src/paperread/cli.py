@@ -415,8 +415,14 @@ def cmd_mathfix(cfg, args) -> int:
 
 
 def cmd_tables(cfg, args) -> int:
-    from .tables import import_tables, upgrade_tables
+    from .tables import emit_table_tasks, import_tables, upgrade_tables
 
+    if args.emit_tasks:
+        out = emit_table_tasks(cfg, args.key)
+        payload = load_json(out, {})
+        print(f"[tables] 疑似破损表头 {len(payload.get('items', []))} 张 → {out}")
+        print("   agent 看 page_png 后用 --import-json 写回正确的 Markdown/HTML 表格")
+        return 0
     if args.import_json:
         n, fulltext = import_tables(cfg, args.key, Path(args.import_json))
         print(f"[tables] 替换 {n} 张表格 → {fulltext}")
@@ -891,6 +897,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_tb = sub.add_parser("tables", aliases=["表格"], help="表格升级：MinerU HTML 表格（保留 rowspan/colspan 与锚点）")
     p_tb.add_argument("key", help="Zotero item key（8 位）")
+    p_tb.add_argument("--emit-tasks", action="store_true", help="导出疑似破损表头（含页图）给 agent 重写")
     p_tb.add_argument("--import-json", default=None, help="导入 {block_id: 表格文本}")
     p_tb.set_defaults(func=cmd_tables)
 

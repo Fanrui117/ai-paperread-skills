@@ -46,6 +46,7 @@ whenToUse: 用户提到 Zotero 论文、Obsidian 论文笔记、全文翻译、�
 | `paperread formulas <key> --emit-tasks` | 导出待识别公式（`assets/eq*.png` + 短宽条图 → LaTeX 任务） |
 | `paperread formulas <key> --import-json <f>` | 导入 `{block_id: latex}`，原地替换公式并重渲染 `translated.md`（保留锚点） |
 | `paperread tables <key>` | 用 MinerU 的 HTML 表格升级管道表格（保留 rowspan/colspan 与锚点），自动转成 Markdown 表格（Obsidian 表格内 `$...$` 才能渲染） |
+| `paperread tables <key> --emit-tasks` | 导出疑似「表头被拍平」的表格（含页图），agent 看原页后 `--import-json` 写回正确表格 |
 | `paperread tables <key> --import-json <f>` | 手工/agent 提供 `{block_id: 表格文本}` 并重渲染 |
 | `paperread fixsrc <key> --import-json <f>` | 修正被 PDF 抽取破坏的源段落：`{block_id: {src, zh}}`，自动重映射译文缓存 |
 | `paperread notesync <key> \| --all [--dry-run]` | 把笔记里已升级为 LaTeX 的公式图替换成 `$$...$$`（其它图保留） |

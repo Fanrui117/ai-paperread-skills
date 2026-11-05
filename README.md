@@ -293,7 +293,7 @@ skill 里写的是相对命令与约定，换机器后只需改 `SKILL.md` 顶�
 | `翻译` | `translate <key> --emit-tasks` / `--import-json <f>` | agent 翻译工作流（导出块 → 逐块译 → 导入） |
 | `写作包` | `packet <key>` | 笔记写作包（大纲 / 锚点 / 图清单 / 摘要） |
 | `行内公式` | `mathfix <key> --emit-tasks \| --import-json <f>` | 中文译文里的行内数学 → `$...$` |
-| `表格` | `tables <key> [--import-json <f>]` | MinerU HTML 表格 → Markdown 表格（表格内公式可渲染） |
+| `表格` | `tables <key> [--emit-tasks] [--import-json <f>]` | MinerU HTML 表格 → Markdown 表格（表格内公式可渲染）；`--emit-tasks` 导出疑似破损表头 + 页图给 agent 重写 |
 | `修源` | `fixsrc <key> --import-json <f>` | 修复被 PDF 抽取破坏的源段落（`{id: {src, zh}}`，缓存自动重映射） |
 | `笔记同步` | `notesync <key> \| --all [--dry-run]` | 把笔记里已升级为 LaTeX 的公式图替换成 `$$...$$`（其它图保留） |
 | `图片排版` | `imggrid <key> --emit-tasks \| --import-json <f>` | 同图多裁片排版：导出图片组+页图，agent 决定并排/竖排/自定义后导入 |
