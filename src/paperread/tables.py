@@ -111,17 +111,26 @@ def _pdf_path(cfg: Config, key: str) -> Path:
 def _mineru_tables(cfg: Config, key: str) -> list[tuple[int, str]]:
     from .mineru import parse_pdf
 
-    res = parse_pdf(cfg, _pdf_path(cfg, key))
-    out: list[tuple[int, str]] = []
+    pdf = _pdf_path(cfg, key)
+    st = pdf.stat()
+    sig = f"{st.st_size}-{int(st.st_mtime)}"
+    cache = cfg.state_dir / "work" / key / "mineru_tables.json"
+    if cache.is_file():
+        data = load_json(cache, {}) or {}
+        if data.get("sig") == sig and data.get("v") == 2:
+            return [(int(t["page"]), html_table_to_markdown(clean_table_html(t["html"]))) for t in data.get("tables", [])]
+
+    res = parse_pdf(cfg, pdf)
+    out: list[dict] = []
     for item in res.content_list:
         if item.get("type") != "table":
             continue
         body = item.get("table_body") or ""
         if not body.strip():
             continue
-        md = html_table_to_markdown(clean_table_html(body))
-        out.append((int(item.get("page_idx", 0)) + 1, md))
-    return out
+        out.append({"page": int(item.get("page_idx", 0)) + 1, "html": body})
+    save_json(cache, {"v": 2, "sig": sig, "tables": out})
+    return [(t["page"], html_table_to_markdown(clean_table_html(t["html"]))) for t in out]
 
 
 def upgrade_tables(cfg: Config, key: str) -> tuple[int, int, list[str]]:

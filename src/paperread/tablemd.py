@@ -44,6 +44,13 @@ class _TableParser(HTMLParser):
             self._row = None
 
 
+def _tighten_math(text: str) -> str:
+    """压缩 LaTeX 里的空格：^{a v g} -> ^{avg}、_{x y} -> _{xy}。"""
+    text = re.sub(r"\^\{([^}]*)\}", lambda m: "^{" + m.group(1).replace(" ", "") + "}", text)
+    text = re.sub(r"_\{([^}]*)\}", lambda m: "_{" + m.group(1).replace(" ", "") + "}", text)
+    return text
+
+
 def html_table_to_markdown(html_str: str) -> str:
     parser = _TableParser()
     try:
@@ -53,6 +60,27 @@ def html_table_to_markdown(html_str: str) -> str:
     rows = parser.rows
     if not rows:
         return html_str
+
+    # 单行整行合并的说明文字（如 "Models evaluated at 256 × 256 resolution."）
+    # 不应重复填满每一列：抽出来放到表格上方。
+    def _note_row(row: list[tuple[str, int, int]]) -> str | None:
+        if not row:
+            return None
+        text, _, colspan = row[0]
+        if colspan >= 2 and len(text) > 30 and all(not t.strip() for t, _, _ in row[1:]):
+            return _tighten_math(text)
+        return None
+
+    notes: list[str] = []
+    data_rows: list[list[tuple[str, int, int]]] = []
+    for row in rows:
+        note = _note_row(row)
+        if note:
+            notes.append(note)
+            continue
+        data_rows.append(row)
+    if data_rows:
+        rows = data_rows
 
     grid: dict[tuple[int, int], str] = {}
     occupied: set[tuple[int, int]] = set()
@@ -75,13 +103,18 @@ def html_table_to_markdown(html_str: str) -> str:
     has_span = any(rs > 1 or cs > 1 for row in rows for _, rs, cs in row)
     header_rows = 2 if has_span and nrows > 1 else 1
 
+    # 去掉整列为空的尾巴（避免「列15」这种多余列）
+    used = {c for (r, c), t in grid.items() if t.strip()}
+    if used:
+        ncols = min(ncols, max(used) + 1)
+
     def col_text(c: int) -> str:
         parts: list[str] = []
         for r in range(header_rows):
             t = grid.get((r, c), "").strip()
             if t and (not parts or parts[-1] != t):
                 parts.append(t)
-        return " ".join(parts)
+        return _tighten_math(" ".join(parts))
 
     header = [col_text(c) or f"列{c + 1}" for c in range(ncols)]
     lines = ["| " + " | ".join(h.replace("|", "\\|") for h in header) + " |"]
@@ -89,10 +122,13 @@ def html_table_to_markdown(html_str: str) -> str:
     for r in range(header_rows, nrows):
         cells = []
         for c in range(ncols):
-            t = grid.get((r, c), "").strip()
+            t = _tighten_math(grid.get((r, c), "").strip())
             cells.append(t.replace("|", "\\|") if t else "—")
         lines.append("| " + " | ".join(cells) + " |")
-    return "\n".join(lines)
+    table = "\n".join(lines)
+    if notes:
+        return "\n\n".join(notes) + "\n\n" + table
+    return table
 
 
 def looks_like_html_table(text: str) -> bool:

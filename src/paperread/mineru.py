@@ -43,6 +43,8 @@ def _client(cfg: Config, timeout: float = 120.0) -> httpx.Client:
     return httpx.Client(
         headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
         timeout=timeout,
+        transport=httpx.HTTPTransport(retries=2),  # 对连接层瞬断自动重试
+        follow_redirects=True,
     )
 
 
