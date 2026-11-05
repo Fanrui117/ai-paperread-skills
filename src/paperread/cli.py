@@ -695,7 +695,8 @@ def cmd_ingest(cfg, args) -> int:
     from .ingest import ingest_paper, resolve_one
 
     try:
-        key, meta = ingest_paper(cfg, args.identifier, collection=args.collection)
+        pdf_bytes = Path(args.pdf).read_bytes() if args.pdf else None
+        key, meta = ingest_paper(cfg, args.identifier, collection=args.collection, pdf_bytes=pdf_bytes)
     except Exception as exc:  # noqa: BLE001
         print(f"[ingest] 失败：{exc}", file=sys.stderr)
         return 1
@@ -953,6 +954,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_ing.add_argument("--dry-run", action="store_true", help="翻译只渲染英文+锚点")
     p_ing.add_argument("--backend", choices=["pymupdf", "mineru"], default=None, help="解析后端")
     p_ing.add_argument("--formulas", action="store_true", help="导出公式任务（agent 识别后升级为 LaTeX）")
+    p_ing.add_argument("--pdf", help="本地 PDF 路径（跳过自动下载，适合 arXiv 限流时）")
     p_ing.set_defaults(func=cmd_ingest)
 
     p_ns = sub.add_parser("notesync", aliases=["笔记同步"], help="把笔记里已升级为 LaTeX 的公式图替换成 $$...$$")

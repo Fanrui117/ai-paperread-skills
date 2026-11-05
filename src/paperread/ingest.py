@@ -102,10 +102,44 @@ def parse_identifier(raw: str) -> tuple[str, str]:
     return "query", s
 
 
+def _fetch_arxiv_html(arxiv_id: str) -> Metadata:
+    """arXiv API 被限流（429）时，从 abs 页面解析 citation_* 元数据。"""
+    r = httpx.get(f"https://arxiv.org/abs/{arxiv_id}", follow_redirects=True, timeout=30)
+    r.raise_for_status()
+    html = r.text
+
+    def meta(name: str) -> str:
+        m = re.search(rf'<meta name="{name}" content="([^"]*)"', html)
+        return _clean(m.group(1)) if m else ""
+
+    title = meta("citation_title")
+    authors = re.findall(r'<meta name="citation_author" content="([^"]*)"', html)
+    date = meta("citation_date") or meta("citation_online_date")
+    abstract = ""
+    m = re.search(r'<blockquote class="abstract[^"]*">(.*?)</blockquote>', html, re.S)
+    if m:
+        abstract = _clean(re.sub(r"<[^>]+>", " ", m.group(1)))
+    if not title:
+        raise RuntimeError(f"无法从 arXiv 页面解析 {arxiv_id}")
+    return Metadata(
+        title=title,
+        authors=[a.strip() for a in authors],
+        year=date[:4],
+        publication="arXiv",
+        url=f"https://arxiv.org/abs/{arxiv_id}",
+        abstract=abstract,
+        arxiv_id=arxiv_id,
+        pdf_url=f"https://www.arxiv.org/pdf/{arxiv_id}",
+    )
+
+
 def fetch_arxiv(arxiv_id: str) -> Metadata:
-    with httpx.Client(timeout=30, follow_redirects=True) as client:
-        r = client.get(ARXIV_API + urllib.parse.quote(arxiv_id))
-        r.raise_for_status()
+    try:
+        with httpx.Client(timeout=30, follow_redirects=True) as client:
+            r = client.get(ARXIV_API + urllib.parse.quote(arxiv_id))
+            r.raise_for_status()
+    except Exception:  # noqa: BLE001  429/超时等情况走 HTML 回退
+        return _fetch_arxiv_html(arxiv_id)
     ns = {"a": "http://www.w3.org/2005/Atom"}
     root = ET.fromstring(r.text)
     entry = root.find("a:entry", ns)
@@ -125,7 +159,7 @@ def fetch_arxiv(arxiv_id: str) -> Metadata:
         url=f"https://arxiv.org/abs/{arxiv_id}",
         abstract=abstract,
         arxiv_id=arxiv_id,
-        pdf_url=f"https://arxiv.org/pdf/{arxiv_id}",
+        pdf_url=f"https://www.arxiv.org/pdf/{arxiv_id}",
     )
 
 
@@ -175,26 +209,70 @@ def fetch_metadata(identifier: str) -> Metadata:
 
 # ---------- 入库 ----------
 
+def _valid_pdf(data: bytes) -> bool:
+    if not data or data[:4] != b"%PDF":
+        return False
+    if data.rstrip().endswith(b"%%EOF"):
+        return True
+    try:
+        import pymupdf
+
+        with pymupdf.open(stream=data, filetype="pdf") as doc:
+            return doc.page_count > 0
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _curl_download(url: str, out, max_time: int, resume: bool = False) -> bytes | None:
+    import subprocess
+
+    cmd = ["curl", "-sL", "--max-time", str(max_time), "-A", "Mozilla/5.0"]
+    if resume and out.exists():
+        cmd += ["-C", "-"]
+    cmd += ["-o", str(out), url]
+    try:
+        subprocess.run(cmd, capture_output=True, timeout=max_time + 30)
+    except Exception:  # noqa: BLE001
+        return None
+    if not out.is_file():
+        return None
+    data = out.read_bytes()
+    return data if _valid_pdf(data) else None
+
+
 def _download_pdf(meta: Metadata, client: ConnectorClient) -> bytes | None:
     if not meta.pdf_url:
         return None
+    import tempfile
+
+    out = Path(tempfile.mkdtemp(prefix="paperread-pdf-")) / "paper.pdf"
+    # 1) curl 分阶段下载（慢链路下先短超时，再断点续传补全）
+    for attempt, (max_time, resume) in enumerate(((300, False), (600, True), (900, True))):
+        data = _curl_download(meta.pdf_url, out, max_time, resume=resume)
+        if data:
+            return data
+    # 2) httpx 兜底
     try:
         with httpx.Client(timeout=120, follow_redirects=True) as http:
             r = http.get(meta.pdf_url)
             r.raise_for_status()
-            if r.content[:4] != b"%PDF":
-                return None
-            return r.content
+            if _valid_pdf(r.content):
+                return r.content
     except Exception:  # noqa: BLE001
-        return None
+        pass
+    return None
 
 
-def ingest_paper(cfg: Config, identifier: str, collection: str | None = None) -> tuple[str, Metadata]:
+def ingest_paper(
+    cfg: Config, identifier: str, collection: str | None = None, pdf_bytes: bytes | None = None
+) -> tuple[str, Metadata]:
     """把论文写入 Zotero（connector API），返回新条目的 Zotero key。"""
-    return ingest_metadata(cfg, fetch_metadata(identifier), collection)
+    return ingest_metadata(cfg, fetch_metadata(identifier), collection, pdf_bytes=pdf_bytes)
 
 
-def ingest_metadata(cfg: Config, meta: Metadata, collection: str | None = None) -> tuple[str, Metadata]:
+def ingest_metadata(
+    cfg: Config, meta: Metadata, collection: str | None = None, pdf_bytes: bytes | None = None
+) -> tuple[str, Metadata]:
     """已知元数据时直接入库（供 search/collect 复用，避免重复抓元数据）。"""
     client = ConnectorClient(cfg.local_api.replace("/api", ""))
     if not client.ping():
@@ -222,7 +300,7 @@ def ingest_metadata(cfg: Config, meta: Metadata, collection: str | None = None) 
     if target:
         client.update_session(session, target=target)
 
-    pdf = _download_pdf(meta, client)
+    pdf = pdf_bytes or _download_pdf(meta, client)
     if pdf:
         client.save_attachment(session, ids[0], pdf, url=meta.url or meta.pdf_url, title="Full Text PDF")
 
