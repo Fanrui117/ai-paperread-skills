@@ -102,11 +102,8 @@ def parse_identifier(raw: str) -> tuple[str, str]:
     return "query", s
 
 
-def _fetch_arxiv_html(arxiv_id: str) -> Metadata:
-    """arXiv API 被限流（429）时，从 abs 页面解析 citation_* 元数据。"""
-    r = httpx.get(f"https://arxiv.org/abs/{arxiv_id}", follow_redirects=True, timeout=30)
-    r.raise_for_status()
-    html = r.text
+def parse_arxiv_html(html: str, arxiv_id: str) -> Metadata:
+    """从 arXiv abs 页面解析 citation_* 元数据。"""
 
     def meta(name: str) -> str:
         m = re.search(rf'<meta name="{name}" content="([^"]*)"', html)
@@ -131,6 +128,13 @@ def _fetch_arxiv_html(arxiv_id: str) -> Metadata:
         arxiv_id=arxiv_id,
         pdf_url=f"https://www.arxiv.org/pdf/{arxiv_id}",
     )
+
+
+def _fetch_arxiv_html(arxiv_id: str) -> Metadata:
+    """arXiv API 被限流（429）时，从 abs 页面解析 citation_* 元数据。"""
+    r = httpx.get(f"https://arxiv.org/abs/{arxiv_id}", follow_redirects=True, timeout=30)
+    r.raise_for_status()
+    return parse_arxiv_html(r.text, arxiv_id)
 
 
 def fetch_arxiv(arxiv_id: str) -> Metadata:

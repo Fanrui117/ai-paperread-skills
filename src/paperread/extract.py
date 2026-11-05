@@ -24,6 +24,12 @@ from .plan import load_state, save_json
 from .zotero import load_library_auto
 
 IMAGE_REF_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
+ASSET_IMAGE_RE = re.compile(r"!\[\[assets/[^\]]+\]\]|!\[[^\]]*\]\(assets/[^)]+\)")
+
+
+def count_asset_images(md: str) -> int:
+    """统计正文里的图片嵌入（兼容旧的 ![[assets/x]] 与新的 ![](assets/x)）。"""
+    return len(ASSET_IMAGE_RE.findall(md))
 PICTURE_TEXT_RE = re.compile(r"<!--\s*Start of picture text\s*-->.*?<!--\s*End of picture text\s*-->", re.S)
 CAPTION_RE = re.compile(r"^(?:Figure|Fig\.)\s*(\d+)\s*[:.|：]", re.I | re.M)
 TABLE_CAPTION_RE = re.compile(r"^Table\s*(\d+)\s*[:.|：]", re.I | re.M)
@@ -419,7 +425,7 @@ def _extract_mineru(cfg: Config, paper, assets: Path, short: str) -> tuple[str, 
     md = IMAGE_REF_RE.sub(repl, res.markdown)
     md = "\n".join(_clean_heading(line) for line in md.splitlines())
     md = re.sub(r"\n{3,}", "\n\n", md).strip() + "\n"
-    fig_count = len(re.findall(r"!\[\[assets/", md))
+    fig_count = count_asset_images(md)
     return md, 0, fig_count, 0
 
 

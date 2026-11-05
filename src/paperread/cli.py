@@ -692,10 +692,13 @@ def cmd_add(cfg, args) -> int:
 
 def cmd_ingest(cfg, args) -> int:
     """把 arXiv / DOI 论文写入 Zotero（可选集合），再按需处理进 vault。"""
-    from .ingest import ingest_paper, resolve_one
+    from .ingest import _valid_pdf, ingest_paper, resolve_one
 
     try:
         pdf_bytes = Path(args.pdf).read_bytes() if args.pdf else None
+        if pdf_bytes is not None and not _valid_pdf(pdf_bytes):
+            print(f"[ingest] --pdf 不是有效 PDF：{args.pdf}", file=sys.stderr)
+            return 1
         key, meta = ingest_paper(cfg, args.identifier, collection=args.collection, pdf_bytes=pdf_bytes)
     except Exception as exc:  # noqa: BLE001
         print(f"[ingest] 失败：{exc}", file=sys.stderr)
